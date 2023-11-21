@@ -113,14 +113,12 @@ df['Minimum Android'] = df['Minimum Android'].str.split('.').str.get(0)
 df['Minimum Android'] = df['Minimum Android'].apply(lambda x: np.nan if x == 'Varies with device' else x)
 
 # Change Size unit to MB
-print(df['Size'][0])
-print(type(df['Size'][0]))
-print(str(df['Size'][20]))
-print(type(df['Size'][20]))
+# print(df['Size'][0])
+# print(type(df['Size'][0]))
+# print(str(df['Size'][20]))
+# print(type(df['Size'][20]))
 
 import re
-
-
 def classify_size_column(value):
     if pd.isna(value) or value == 'Varies with device':
         return np.nan
@@ -157,6 +155,7 @@ df['Last Update Age'] = (scraped_time - df['Last Updated']).dt.days
 df.drop(columns=['Released', 'Last Updated'], inplace=True)
 
 df.dropna(inplace=True)
+df.drop_duplicates(inplace=True)
 rename_dict = {
     'App Name': 'appName',
     'Category': 'category',
@@ -198,9 +197,135 @@ rfa.fit(rfa_X_train, rfa_y_train)
 rfa_y_pred = rfa.predict(rfa_X_test)
 features = rfa_X.columns
 importances = rfa.feature_importances_
-
+indices = np.argsort(importances)[-14:]
+plt.title("Feature Importance - Random Forest")
+plt.barh(range(len(indices)), importances[indices], color='b', align='center')
+plt.yticks(range(len(indices)), [features[i] for i in indices])
+plt.xlabel('Relative Importance')
+plt.tight_layout()
+plt.show()
 import gc
 del rfa_X, rfa_y, rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test, rfa, rfa_y_pred
 gc.collect()
 
-#### PCA and Conditional number
+#### PCA and condition number
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import matplotlib.pyplot as plt
+pca_X = df.copy()
+pca_y = df['installCount'].copy()
+pca_X.drop(columns=['installCount','installRange'], inplace=True)
+pca_X.drop(columns=['appName'], inplace=True)
+
+pca_columns_to_standardize = ['rating', 'ratingCount', 'priceInUSD', 'sizeInMB', 'appAgeInDays', 'lastUpdateAgeInDays']
+pca_X[pca_columns_to_standardize] = StandardScaler().fit_transform(pca_X[pca_columns_to_standardize])
+
+pca_X = pd.get_dummies(pca_X, columns=['category', 'contentRating', 'minAndroidVersion'])
+# Replace true/false with 1/0
+for col in pca_X.columns:
+    if pca_X[col].dtype == 'bool':
+        pca_X[col] = pca_X[col].astype(int)
+
+
+pca = PCA(n_components='mle', svd_solver='full')
+pca.fit(pca_X)
+pca_X_transform = pca.transform(pca_X)
+print("Original shape: {}".format(str(pca_X.shape)))
+print("PCA transformed shape: {}".format(str(pca_X_transform.shape)))
+print("Original condition number: {:.2f}".format(np.linalg.cond(pca_X)))
+print("PCA transformed condition number: {:.2f}".format(np.linalg.cond(pca_X_transform)))
+plt.figure(figsize=(10, 10))
+plt.plot(np.arange(1, len(pca.explained_variance_ratio_) + 1, 1), np.cumsum(pca.explained_variance_ratio_))
+plt.xticks(np.arange(1, len(pca.explained_variance_ratio_) + 1, 5))
+plt.axvline(x=10, color='r', linestyle='--')
+plt.axhline(y=0.85, color='b', linestyle='--')
+plt.xlabel('Number of Components')
+plt.ylabel('Cumulative Explained Variance Ratio')
+plt.title('PCA - Cumulative Explained Variance Ratio')
+plt.grid()
+plt.show()
+del pca_X, pca_y, pca, pca_X_transform
+gc.collect()
+
+#### SVD Analsyis
+from sklearn.decomposition import TruncatedSVD
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import matplotlib.pyplot as plt
+
+svd_X = df.copy()
+svd_y = df['installCount'].copy()
+svd_X.drop(columns=['installCount', 'installRange'], inplace=True)
+svd_X.drop(columns=['appName'], inplace=True)
+
+svd_columns_to_standardize = ['rating', 'ratingCount', 'priceInUSD', 'sizeInMB', 'appAgeInDays', 'lastUpdateAgeInDays']
+svd_X[svd_columns_to_standardize] = StandardScaler().fit_transform(svd_X[svd_columns_to_standardize])
+
+svd_X = pd.get_dummies(svd_X, columns=['category', 'contentRating', 'minAndroidVersion'])
+# Replace true/false with 1/0
+for col in svd_X.columns:
+    if svd_X[col].dtype == 'bool':
+        svd_X[col] = svd_X[col].astype(int)
+
+svd = TruncatedSVD(n_components=10, n_iter=7, random_state=5805)
+svd.fit(svd_X)
+svd_X_transform = svd.transform(svd_X)
+print("Original shape: {}".format(str(svd_X.shape)))
+print("SVD transformed shape: {}".format(str(svd_X_transform.shape)))
+
+print("Original singular values: ", ["{:.2f}".format(val) for val in np.linalg.svd(svd_X, compute_uv=False)])
+print("SVD transformed singular values: ",
+      ["{:.2f}".format(val) for val in np.linalg.svd(svd_X_transform, compute_uv=False)])
+
+del svd_X, svd_y, svd, svd_X_transform
+gc.collect()
+
+##### VIF
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import matplotlib.pyplot as plt
+vif_X = df.copy()
+vif_X.drop(columns=['installCount','installRange'], inplace=True)
+vif_X.drop(columns=['appName', 'category','contentRating', 'minAndroidVersion'], inplace=True)
+vif_columns_to_standardize = ['rating', 'ratingCount', 'priceInUSD', 'sizeInMB', 'appAgeInDays', 'lastUpdateAgeInDays']
+vif_X[vif_columns_to_standardize] = StandardScaler().fit_transform(vif_X[vif_columns_to_standardize])
+# Replace true/false with 1/0
+for col in vif_X.columns:
+    if vif_X[col].dtype == 'bool':
+        vif_X[col] = vif_X[col].astype(int)
+VIFs = pd.Series([variance_inflation_factor(vif_X, i) for i in range(vif_X.shape[1])], index=vif_X.columns)
+print("VIFs: ")
+print(VIFs)
+del vif_X
+gc.collect()
+
+df = pd.get_dummies(df, columns=['category', 'contentRating', 'minAndroidVersion'])
+df=df[['ratingCount','sizeInMB','lastUpdateAgeInDays','minAndroidVersion_8','appAgeInDays','rating','category_Productivity', 'category_Social', 'isInAppPurchases', 'minAndroidVersion_7','installCount','installRange']]
+
+for col in df.columns:
+    if df[col].dtype == 'bool':
+        df[col] = df[col].astype(int)
+
+def install_groupby(value):
+    if value < 100:
+        return '0-100'
+    elif value < 1000:
+        return '100-1k'
+    elif value < 10000:
+        return '1k-10k'
+    elif value < 100000:
+        return '10k-100k'
+    else:
+        return '100k+'
+df['installRange'] = df['installRange'].apply(install_groupby)
+
+#### Srandardization
+df_standard = df.copy()
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']] = scaler.fit_transform(df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']])
+
+#### Anomaly Detection and Outlier Analysis
+
