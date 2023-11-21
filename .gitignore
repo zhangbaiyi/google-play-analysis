@@ -2,3 +2,5 @@
 .idea/
 Google-Playstore.csv
 .DS_Store
+output/preprocessed_standard.csv
+output/preprocessed.csv

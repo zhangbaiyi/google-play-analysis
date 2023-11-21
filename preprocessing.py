@@ -16,14 +16,10 @@ from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from scipy.spatial.distance import mahalanobis
 from scipy.stats import chi2
+import os
 
 df = pd.read_csv('Google-Playstore.csv')
-
-random.seed(time.time())
-
-feature_outlook = PrettyTable()
-feature_outlook.field_names = ["Feature", "Type", "N/A Count", "N/A Percentage", "Cat/Num", "Unique Count",
-                               "Unique Percentage", "Example"]
+random.seed(5805)
 
 def install_groupby(value):
     if value < 100:
@@ -53,72 +49,6 @@ def check_unique_percentage(col):
     ratio = len(df[col].unique()) / len(df[col])
     return f"{ratio:.2%}"
 
-print("Phase I - Data cleaning")
-print("Raw data overview")
-for col in df.columns:
-    feature_outlook.add_row(
-        [col, df[col].dtype, df[col].isna().sum(), check_na_percentage(col), judge_cat_num(col), len(df[col].unique()),
-         check_unique_percentage(col), df[col].unique()[random.randint(0, len(df[col].unique()) - 1)]])
-print(feature_outlook)
-
-print("Phase I - Data cleaning")
-print("NA values percentage")
-
-na_feature_percentage = df.isna().sum().sort_values(ascending=False) / len(df) * 100
-na_feature_percentage = na_feature_percentage[na_feature_percentage > 0]
-plt.figure(figsize=(10, 5))
-na_feature_percentage.plot(kind='barh')
-plt.xlabel('Percentage (%)')
-plt.ylabel('Features')
-plt.title('Percentage of N/A Values')
-plt.grid()
-plt.show()
-df.drop(columns=['Developer Website', 'Developer Email', 'Developer Id', 'Privacy Policy'], inplace=True)
-df.drop(columns=['App Id'], inplace=True)
-df.drop(columns=['Free'], inplace=True)
-df.drop(columns=['Scraped Time'], inplace=True)
-
-print("Phase I - Data duplication")
-print("Duplication in Currency column")
-currency_values_count = df['Currency'].value_counts()
-print("Currency values count")
-print(currency_values_count)
-currency_pie = currency_values_count.head(1)
-currency_pie['Others'] = currency_values_count[1:].sum()
-currency_pie.plot(kind='pie', figsize=(10, 10), autopct='%1.1f%%', labels=['USD', 'Others'], ylabel='Currency',
-                  title='Currency Distribution')
-plt.tight_layout()
-plt.show()
-
-# Drop all non-USD currency
-df['Currency'] = df['Currency'].apply(lambda x: 'USD' if x == 'USD' else 'Others')
-df.drop(df[df['Currency'] == 'Others'].index, inplace=True)
-print(df.shape)
-df.drop(columns=['Currency'], inplace=True)
-
-print("Phase I - Data duplication")
-print("Duplication between 'Installs' and 'Minimum Installs'")
-# Test if installs and min-install are the same
-installs = df['Installs'].apply(lambda x: x.replace('+', '') if '+' in x else x)
-installs = pd.to_numeric(installs.apply(lambda x: x.replace(',', '') if ',' in x else x))
-min_installs = df['Minimum Installs']
-min_installs = pd.to_numeric(min_installs)
-min_installs = min_installs.astype('int64')
-print("After conversion, is installs equal to min_installs?")
-print(installs.equals(min_installs))
-# Drop 'Installs'
-df.drop(columns=['Installs'], inplace=True)
-
-print("Phase I - Aggregation")
-print("Aggregation of Android versions.")
-# Minimum Android Version
-# Replace ' and up' and ' - ' in the entire column
-df['Minimum Android'] = df['Minimum Android'].str.replace(' and up', '').str.split(' - ').str.get(0)
-df['Minimum Android'] = df['Minimum Android'].str.split('.').str.get(0)
-# Replace 'Varies with device' with NaN
-df['Minimum Android'] = df['Minimum Android'].apply(lambda x: np.nan if x == 'Varies with device' else x)
-
-
 def classify_size_column(value):
     if pd.isna(value) or value == 'Varies with device':
         return np.nan
@@ -134,7 +64,97 @@ def classify_size_column(value):
     else:
         return np.nan
 
+print("=========================================")
+print("Raw data overview")
+print("Output: table of feature overview")
+print("=========================================")
+feature_outlook = PrettyTable()
+feature_outlook.field_names = ["Feature", "Type", "N/A Count", "N/A Percentage", "Cat/Num", "Unique Count",
+                               "Unique Percentage", "Example"]
+for col in df.columns:
+    feature_outlook.add_row(
+        [col, df[col].dtype, df[col].isna().sum(), check_na_percentage(col), judge_cat_num(col), len(df[col].unique()),
+         check_unique_percentage(col), df[col].unique()[random.randint(0, len(df[col].unique()) - 1)]])
+print(feature_outlook)
+del feature_outlook
+gc.collect()
 
+print("=========================================")
+print("NA Values Percentage")
+print("Output: bar chart of NA values percentage")
+print("=========================================")
+
+na_feature_percentage = df.isna().sum().sort_values(ascending=False) / len(df) * 100
+na_feature_percentage = na_feature_percentage[na_feature_percentage > 0]
+plt.figure(figsize=(10, 5))
+na_feature_percentage.plot(kind='barh')
+plt.xlabel('Percentage (%)')
+plt.ylabel('Features')
+plt.title('Percentage of N/A Values')
+plt.grid()
+plt.show()
+df.drop(columns=['Developer Website', 'Developer Email', 'Developer Id', 'Privacy Policy'], inplace=True)
+df.drop(columns=['App Id'], inplace=True)
+df.drop(columns=['Free'], inplace=True)
+df.drop(columns=['Scraped Time'], inplace=True)
+del na_feature_percentage
+gc.collect()
+
+print("=========================================")
+print("Duplication in Currency column")
+print("Output: pie chart of currency distribution")
+print("=========================================")
+currency_values_count = df['Currency'].value_counts()
+currency_pie = currency_values_count.head(1)
+currency_pie['Others'] = currency_values_count[1:].sum()
+currency_pie.plot(kind='pie', autopct='%1.1f%%', labels=['USD', 'Others'], ylabel='Currency',
+                  title='Currency Distribution')
+plt.show()
+del currency_values_count, currency_pie
+gc.collect()
+
+# Drop all non-USD currency
+df['Currency'] = df['Currency'].apply(lambda x: 'USD' if x == 'USD' else 'Others')
+df.drop(df[df['Currency'] == 'Others'].index, inplace=True)
+print(df.shape)
+df.drop(columns=['Currency'], inplace=True)
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
+
+print("=========================================")
+print("Duplication between 'Installs' and 'Minimum Installs'")
+print("Output: boolean value")
+print("=========================================")
+# Test if installs and min-install are the same
+installs = df['Installs'].apply(lambda x: x.replace('+', '') if '+' in x else x)
+installs = pd.to_numeric(installs.apply(lambda x: x.replace(',', '') if ',' in x else x))
+min_installs = df['Minimum Installs']
+min_installs = pd.to_numeric(min_installs)
+min_installs = min_installs.astype('int64')
+print("After conversion, is installs equal to min_installs?")
+print(installs.equals(min_installs))
+del installs, min_installs
+gc.collect()
+
+# Drop 'Installs'
+df.drop(columns=['Installs'], inplace=True)
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
+
+
+print("=========================================")
+print("Aggregation of Android versions.")
+print("Output: Null")
+print("=========================================")
+# Replace ' and up' and ' - ' in the entire column
+df['Minimum Android'] = df['Minimum Android'].str.replace(' and up', '').str.split(' - ').str.get(0)
+df['Minimum Android'] = df['Minimum Android'].str.split('.').str.get(0)
+# Replace 'Varies with device' with NaN
+df['Minimum Android'] = df['Minimum Android'].apply(lambda x: np.nan if x == 'Varies with device' else x)
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
+
+print("=========================================")
+print("Change size unit to MB")
+print("Output: Null")
+print("=========================================")
 df['Clean Size'] = df['Size'].apply(classify_size_column)
 df['Clean Size'].describe()
 plt.figure(figsize=(10, 10))
@@ -144,7 +164,12 @@ plt.xlabel('Size (MB)')
 plt.ylabel('Count')
 plt.show()
 df.drop(columns=['Size'], inplace=True)
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
 
+print("=========================================")
+print("Replace date by age in days")
+print("Output: Null")
+print("=========================================")
 # Replace date by age (in days)
 df['Released'] = pd.to_datetime(df['Released'], format='%b %d, %Y')
 df['Last Updated'] = pd.to_datetime(df['Last Updated'], format='%b %d, %Y')
@@ -153,9 +178,20 @@ df['App Age'] = (scraped_time - df['Released']).dt.days
 # Last update age
 df['Last Update Age'] = (scraped_time - df['Last Updated']).dt.days
 df.drop(columns=['Released', 'Last Updated'], inplace=True)
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
 
+print("=========================================")
+print("Drop N/A values and duplicates")
+print("Output: Null")
+print("=========================================")
 df.dropna(inplace=True)
 df.drop_duplicates(inplace=True)
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
+
+print("=========================================")
+print("Rename columns")
+print("Output: Null")
+print("=========================================")
 rename_dict = {
     'App Name': 'appName',
     'Category': 'category',
@@ -172,12 +208,14 @@ rename_dict = {
     'Minimum Installs': 'installRange',
     'App Age': 'appAgeInDays',
     'Last Update Age': 'lastUpdateAgeInDays'
-
 }
 df.rename(columns=rename_dict, inplace=True)
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
 
-
-
+print("=========================================")
+print("Random Forest Analysis")
+print("Output: Feature Importance Plot")
+print("=========================================")
 rfa_X = df.copy()
 rfa_y = df['installCount'].copy()
 rfa_X.drop(columns=['installCount','installRange'], inplace=True)
@@ -187,36 +225,35 @@ rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test = train_test_split(rfa_X, rfa_y
 
 rfa = RandomForestRegressor(random_state=5805, max_depth=10)
 rfa.fit(rfa_X_train, rfa_y_train)
-
 rfa_y_pred = rfa.predict(rfa_X_test)
 features = rfa_X.columns
 importances = rfa.feature_importances_
 indices = np.argsort(importances)[-14:]
+plt.figure(figsize=(10, 10))
 plt.title("Feature Importance - Random Forest")
 plt.barh(range(len(indices)), importances[indices], color='b', align='center')
 plt.yticks(range(len(indices)), [features[i] for i in indices])
 plt.xlabel('Relative Importance')
 plt.tight_layout()
 plt.show()
-del rfa_X, rfa_y, rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test, rfa, rfa_y_pred
+del rfa_X, rfa_y, rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test, rfa, rfa_y_pred, importances, indices, features
 gc.collect()
 
-
+print("=========================================")
+print("Principal Component Analysis")
+print("Output: Explained Variance Ratio Plot")
+print("=========================================")
 pca_X = df.copy()
 pca_y = df['installCount'].copy()
 pca_X.drop(columns=['installCount','installRange'], inplace=True)
 pca_X.drop(columns=['appName'], inplace=True)
-
 pca_columns_to_standardize = ['rating', 'ratingCount', 'priceInUSD', 'sizeInMB', 'appAgeInDays', 'lastUpdateAgeInDays']
 pca_X[pca_columns_to_standardize] = StandardScaler().fit_transform(pca_X[pca_columns_to_standardize])
 
 pca_X = pd.get_dummies(pca_X, columns=['category', 'contentRating', 'minAndroidVersion'])
-# Replace true/false with 1/0
 for col in pca_X.columns:
     if pca_X[col].dtype == 'bool':
         pca_X[col] = pca_X[col].astype(int)
-
-
 pca = PCA(n_components='mle', svd_solver='full')
 pca.fit(pca_X)
 pca_X_transform = pca.transform(pca_X)
@@ -234,11 +271,13 @@ plt.ylabel('Cumulative Explained Variance Ratio')
 plt.title('PCA - Cumulative Explained Variance Ratio')
 plt.grid()
 plt.show()
-del pca_X, pca_y, pca, pca_X_transform
+del pca_X, pca_y, pca, pca_X_transform, pca_columns_to_standardize
 gc.collect()
 
-#### SVD Analsyis
-
+print("=========================================")
+print("Single Value Decomposition")
+print("Output: Singular values of original and SVD transformed matrix")
+print("=========================================")
 svd_X = df.copy()
 svd_y = df['installCount'].copy()
 svd_X.drop(columns=['installCount', 'installRange'], inplace=True)
@@ -258,16 +297,17 @@ svd.fit(svd_X)
 svd_X_transform = svd.transform(svd_X)
 print("Original shape: {}".format(str(svd_X.shape)))
 print("SVD transformed shape: {}".format(str(svd_X_transform.shape)))
-
 print("Original singular values: ", ["{:.2f}".format(val) for val in np.linalg.svd(svd_X, compute_uv=False)])
 print("SVD transformed singular values: ",
       ["{:.2f}".format(val) for val in np.linalg.svd(svd_X_transform, compute_uv=False)])
 
-del svd_X, svd_y, svd, svd_X_transform
+del svd_X, svd_y, svd, svd_X_transform, svd_columns_to_standardize
 gc.collect()
 
-##### VIF
-
+print("=========================================")
+print("Variation Inflation Factor")
+print("Output: VIFs")
+print("=========================================")
 vif_X = df.copy()
 vif_X.drop(columns=['installCount','installRange'], inplace=True)
 vif_X.drop(columns=['appName', 'category','contentRating', 'minAndroidVersion'], inplace=True)
@@ -283,44 +323,43 @@ print(VIFs)
 del vif_X
 gc.collect()
 
+print("=========================================")
+print("One hot encoding")
+print("Output: Null")
+print("=========================================")
 df = pd.get_dummies(df, columns=['category', 'contentRating', 'minAndroidVersion'])
 df=df[['ratingCount','sizeInMB','lastUpdateAgeInDays','minAndroidVersion_8','appAgeInDays','rating','category_Productivity', 'category_Social', 'isInAppPurchases', 'minAndroidVersion_7','installCount','installRange']]
-
 for col in df.columns:
     if df[col].dtype == 'bool':
         df[col] = df[col].astype(int)
-
-
 df['installRange'] = df['installRange'].apply(install_groupby)
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
 
-#### Srandardization
+print("=========================================")
+print("Standardization")
+print("Output: Null")
+print("=========================================")
 df_standard = df.copy()
-
 scaler = StandardScaler()
 df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']] = scaler.fit_transform(df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']])
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
 
+print("=========================================")
+print("Outlier Detection")
+print("Output: Outlier Detection Result")
+print("=========================================")
 df_outlier = df_standard.copy()
-
-##### Mahalanobis Distance
-
 df_outlier.drop(columns=['installRange'], inplace=True)
 df_outlier['installCount'] = scaler.fit_transform(df_outlier[['installCount']])
 mean_vector = df_outlier.mean()
 covariance_matrix = df_outlier.cov()
 inv_covariance_matrix = np.linalg.inv(covariance_matrix)
-
 mahalanobis_dist = [mahalanobis(df_outlier.iloc[i], mean_vector, inv_covariance_matrix) for i in range(len(df_outlier))]
-
-
 df_outlier['mahalanobis_dist'] = mahalanobis_dist
-
-
-significance_level = 0.1  # Adjust as needed
-threshold = chi2.ppf((1 - significance_level), df=11)  # df is the number of variables
+significance_level = 0.1
+threshold = chi2.ppf((1 - significance_level), df=11)
 df_outlier['outlier'] = df_outlier['mahalanobis_dist']**2 > threshold
-
-df_outlier['outlier'].value_counts()
-
+print(df_outlier['outlier'].value_counts())
 df['outlier'] = df_outlier['outlier']
 df_standard['outlier'] = df_outlier['outlier']
 df_standard = df_standard[df_standard['outlier']==False]
@@ -329,41 +368,64 @@ df_standard.drop(columns=['outlier'],inplace=True)
 df_standard.reset_index(drop=True,inplace=True)
 df.drop(columns=['outlier'],inplace=True)
 df.reset_index(drop=True,inplace=True)
-del df_outlier
+del df_outlier, mean_vector, covariance_matrix, inv_covariance_matrix, mahalanobis_dist, significance_level, threshold
 gc.collect()
+print("Shape of Dataframe after modification: {}".format(str(df.shape)))
 
-
+print("=========================================")
+print("Covariance Matrix")
+print("Output: Covariance Matrix")
+print("=========================================")
 covariance_matrix = df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']].cov()
 plt.figure(figsize=(12, 10))
 sns.heatmap(covariance_matrix, annot=True, fmt=".5f", cmap='coolwarm', linewidths=0.5)
 plt.title('Covariance Matrix')
 plt.tight_layout()
 plt.show()
+del covariance_matrix
+gc.collect()
 
-##### Correlation Matrix
+print("=========================================")
+print("Correlation Matrix")
+print("Output: Correlation Matrix")
+print("=========================================")
 corr_matrix = df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']].corr()
 plt.figure(figsize=(12, 10))
 sns.heatmap(corr_matrix, annot=True, fmt=".5f", cmap='coolwarm', linewidths=0.5)
 plt.title('Pearson Correlation Coefficients Matrix')
 plt.tight_layout()
 plt.show()
+del corr_matrix
+gc.collect()
 
+print("=========================================")
+print("Balanced/Imbalanced Target Distribution")
+print("Output: Bar Chart of Target Distribution")
+print("=========================================")
 value_counts = pd.DataFrame(df['installRange'].value_counts())
 total_count = value_counts['count'].sum()
 value_counts['percentage'] = value_counts['count'] / total_count * 100
 plt.figure(figsize=(10, 5))
-plt.barh(value_counts.index, value_counts['percentage'], color='skyblue')
+plt.barh(value_counts.index, value_counts['percentage'], color='blue')
 plt.xlabel('Percentage (%)')
 plt.ylabel('Range')
 plt.title('Target Distribution - Install Range')
 plt.grid(axis='x')
-
-# Setting xticks as percentage
 xticks = range(0, 51, 10)
 plt.xticks(xticks, [f"{x}%" for x in xticks])
-
-# Displaying percentage on each bar
 for index, value in enumerate(value_counts['percentage']):
     plt.text(value, index, f"{value:.2f}%", va='center')
-
 plt.show()
+del value_counts, total_count
+gc.collect()
+
+print("=========================================")
+print("Write to CSV")
+print("Output: output/preprocessed.csv and output/preprocessed_standard.csv")
+print("=========================================")
+if not os.path.exists('output'):
+    os.makedirs('output')
+    if not os.path.exists('output/preprocessed_standard.csv'):
+        df_standard.to_csv('output/preprocessed_standard.csv',index=False)
+    if not os.path.exists('output/preprocessed.csv'):
+        df.to_csv('output/preprocessed.csv',index=False)
