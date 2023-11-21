@@ -1,13 +1,23 @@
 # Google Play Dataset - Preprocessing
 
 import pandas as pd
-
-df = pd.read_csv('Google-Playstore.csv')
-
-from prettytable import PrettyTable
+import numpy as np
 import random
 import time
-import numpy as np
+import re
+import gc
+import matplotlib.pyplot as plt
+import seaborn as sns
+from prettytable import PrettyTable
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.preprocessing import StandardScaler
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from scipy.spatial.distance import mahalanobis
+from scipy.stats import chi2
+
+df = pd.read_csv('Google-Playstore.csv')
 
 random.seed(time.time())
 
@@ -15,6 +25,17 @@ feature_outlook = PrettyTable()
 feature_outlook.field_names = ["Feature", "Type", "N/A Count", "N/A Percentage", "Cat/Num", "Unique Count",
                                "Unique Percentage", "Example"]
 
+def install_groupby(value):
+    if value < 100:
+        return '0-100'
+    elif value < 1000:
+        return '100-1k'
+    elif value < 10000:
+        return '1k-10k'
+    elif value < 100000:
+        return '10k-100k'
+    else:
+        return '100k+'
 
 def judge_cat_num(col):
     if df[col].dtype == 'float64' or df[col].dtype == 'int64':
@@ -32,20 +53,6 @@ def check_unique_percentage(col):
     ratio = len(df[col].unique()) / len(df[col])
     return f"{ratio:.2%}"
 
-
-def install_groupby(value):
-    if value < 100:
-        return '0-100'
-    elif value < 1000:
-        return '100-1k'
-    elif value < 10000:
-        return '1k-10k'
-    elif value < 100000:
-        return '10k-100k'
-    else:
-        return '100k+'
-
-
 print("Phase I - Data cleaning")
 print("Raw data overview")
 for col in df.columns:
@@ -56,7 +63,6 @@ print(feature_outlook)
 
 print("Phase I - Data cleaning")
 print("NA values percentage")
-import matplotlib.pyplot as plt
 
 na_feature_percentage = df.isna().sum().sort_values(ascending=False) / len(df) * 100
 na_feature_percentage = na_feature_percentage[na_feature_percentage > 0]
@@ -112,13 +118,7 @@ df['Minimum Android'] = df['Minimum Android'].str.split('.').str.get(0)
 # Replace 'Varies with device' with NaN
 df['Minimum Android'] = df['Minimum Android'].apply(lambda x: np.nan if x == 'Varies with device' else x)
 
-# Change Size unit to MB
-# print(df['Size'][0])
-# print(type(df['Size'][0]))
-# print(str(df['Size'][20]))
-# print(type(df['Size'][20]))
 
-import re
 def classify_size_column(value):
     if pd.isna(value) or value == 'Varies with device':
         return np.nan
@@ -177,12 +177,6 @@ rename_dict = {
 df.rename(columns=rename_dict, inplace=True)
 
 
-#### Random Forest Analysis
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
-import numpy as np
-import matplotlib.pyplot as plt
 
 rfa_X = df.copy()
 rfa_y = df['installCount'].copy()
@@ -204,15 +198,10 @@ plt.yticks(range(len(indices)), [features[i] for i in indices])
 plt.xlabel('Relative Importance')
 plt.tight_layout()
 plt.show()
-import gc
 del rfa_X, rfa_y, rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test, rfa, rfa_y_pred
 gc.collect()
 
-#### PCA and condition number
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-import numpy as np
-import matplotlib.pyplot as plt
+
 pca_X = df.copy()
 pca_y = df['installCount'].copy()
 pca_X.drop(columns=['installCount','installRange'], inplace=True)
@@ -249,10 +238,6 @@ del pca_X, pca_y, pca, pca_X_transform
 gc.collect()
 
 #### SVD Analsyis
-from sklearn.decomposition import TruncatedSVD
-from sklearn.preprocessing import StandardScaler
-import numpy as np
-import matplotlib.pyplot as plt
 
 svd_X = df.copy()
 svd_y = df['installCount'].copy()
@@ -282,10 +267,7 @@ del svd_X, svd_y, svd, svd_X_transform
 gc.collect()
 
 ##### VIF
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-from sklearn.preprocessing import StandardScaler
-import numpy as np
-import matplotlib.pyplot as plt
+
 vif_X = df.copy()
 vif_X.drop(columns=['installCount','installRange'], inplace=True)
 vif_X.drop(columns=['appName', 'category','contentRating', 'minAndroidVersion'], inplace=True)
@@ -308,24 +290,80 @@ for col in df.columns:
     if df[col].dtype == 'bool':
         df[col] = df[col].astype(int)
 
-def install_groupby(value):
-    if value < 100:
-        return '0-100'
-    elif value < 1000:
-        return '100-1k'
-    elif value < 10000:
-        return '1k-10k'
-    elif value < 100000:
-        return '10k-100k'
-    else:
-        return '100k+'
+
 df['installRange'] = df['installRange'].apply(install_groupby)
 
 #### Srandardization
 df_standard = df.copy()
-from sklearn.preprocessing import StandardScaler
+
 scaler = StandardScaler()
 df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']] = scaler.fit_transform(df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']])
 
-#### Anomaly Detection and Outlier Analysis
+df_outlier = df_standard.copy()
 
+##### Mahalanobis Distance
+
+df_outlier.drop(columns=['installRange'], inplace=True)
+df_outlier['installCount'] = scaler.fit_transform(df_outlier[['installCount']])
+mean_vector = df_outlier.mean()
+covariance_matrix = df_outlier.cov()
+inv_covariance_matrix = np.linalg.inv(covariance_matrix)
+
+mahalanobis_dist = [mahalanobis(df_outlier.iloc[i], mean_vector, inv_covariance_matrix) for i in range(len(df_outlier))]
+
+
+df_outlier['mahalanobis_dist'] = mahalanobis_dist
+
+
+significance_level = 0.1  # Adjust as needed
+threshold = chi2.ppf((1 - significance_level), df=11)  # df is the number of variables
+df_outlier['outlier'] = df_outlier['mahalanobis_dist']**2 > threshold
+
+df_outlier['outlier'].value_counts()
+
+df['outlier'] = df_outlier['outlier']
+df_standard['outlier'] = df_outlier['outlier']
+df_standard = df_standard[df_standard['outlier']==False]
+df = df[df['outlier']==False]
+df_standard.drop(columns=['outlier'],inplace=True)
+df_standard.reset_index(drop=True,inplace=True)
+df.drop(columns=['outlier'],inplace=True)
+df.reset_index(drop=True,inplace=True)
+del df_outlier
+gc.collect()
+
+
+covariance_matrix = df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']].cov()
+plt.figure(figsize=(12, 10))
+sns.heatmap(covariance_matrix, annot=True, fmt=".5f", cmap='coolwarm', linewidths=0.5)
+plt.title('Covariance Matrix')
+plt.tight_layout()
+plt.show()
+
+##### Correlation Matrix
+corr_matrix = df_standard[['ratingCount','sizeInMB','lastUpdateAgeInDays','appAgeInDays','rating']].corr()
+plt.figure(figsize=(12, 10))
+sns.heatmap(corr_matrix, annot=True, fmt=".5f", cmap='coolwarm', linewidths=0.5)
+plt.title('Pearson Correlation Coefficients Matrix')
+plt.tight_layout()
+plt.show()
+
+value_counts = pd.DataFrame(df['installRange'].value_counts())
+total_count = value_counts['count'].sum()
+value_counts['percentage'] = value_counts['count'] / total_count * 100
+plt.figure(figsize=(10, 5))
+plt.barh(value_counts.index, value_counts['percentage'], color='skyblue')
+plt.xlabel('Percentage (%)')
+plt.ylabel('Range')
+plt.title('Target Distribution - Install Range')
+plt.grid(axis='x')
+
+# Setting xticks as percentage
+xticks = range(0, 51, 10)
+plt.xticks(xticks, [f"{x}%" for x in xticks])
+
+# Displaying percentage on each bar
+for index, value in enumerate(value_counts['percentage']):
+    plt.text(value, index, f"{value:.2f}%", va='center')
+
+plt.show()
