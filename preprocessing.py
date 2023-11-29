@@ -14,8 +14,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
-from scipy.spatial.distance import mahalanobis
-from scipy.stats import chi2
 import os
 
 df = pd.read_csv('Google-Playstore.csv')
@@ -30,9 +28,12 @@ def install_groupby(value):
         return '1k-10k'
     elif value < 100000:
         return '10k-100k'
+    elif value < 1000000:
+        return 'Low'
+    elif value < 10000000:
+        return 'Medium'
     else:
-        return '100k+'
-
+        return 'High'
 def judge_cat_num(col):
     if df[col].dtype == 'float64' or df[col].dtype == 'int64':
         return 'Numerical'
@@ -99,6 +100,14 @@ df.drop(columns=['Free'], inplace=True)
 df.drop(columns=['Scraped Time'], inplace=True)
 del na_feature_percentage
 gc.collect()
+
+print("=========================================")
+print("Down sampling")
+print("Output: shape of the dataset")
+print("=========================================")
+df = df.query('`Maximum Installs` > 100000')
+df = df.query('`Maximum Installs` < 10000000')
+print(df.shape)
 
 print("=========================================")
 print("Duplication in Currency column")
@@ -348,30 +357,36 @@ print("=========================================")
 print("Outlier Detection")
 print("Output: Outlier Detection Result")
 print("=========================================")
-df_outlier = df_standard.copy()
-df_outlier.drop(columns=['installRange'], inplace=True)
-df_outlier['installCount'] = scaler.fit_transform(df_outlier[['installCount']])
-mean_vector = df_outlier.mean()
-covariance_matrix = df_outlier.cov()
-inv_covariance_matrix = np.linalg.inv(covariance_matrix)
-mahalanobis_dist = [mahalanobis(df_outlier.iloc[i], mean_vector, inv_covariance_matrix) for i in range(len(df_outlier))]
-df_outlier['mahalanobis_dist'] = mahalanobis_dist
-significance_level = 0.1
-threshold = chi2.ppf((1 - significance_level), df=11)
-df_outlier['outlier'] = df_outlier['mahalanobis_dist']**2 > threshold
-print(df_outlier['outlier'].value_counts())
-df['outlier'] = df_outlier['outlier']
-df_standard['outlier'] = df_outlier['outlier']
-df_standard = df_standard[df_standard['outlier']==False]
-df = df[df['outlier']==False]
-df_standard.drop(columns=['outlier'],inplace=True)
-df_standard.reset_index(drop=True,inplace=True)
-df.drop(columns=['outlier'],inplace=True)
-df.reset_index(drop=True,inplace=True)
-del df_outlier, mean_vector, covariance_matrix, inv_covariance_matrix, mahalanobis_dist, significance_level, threshold
-gc.collect()
-print("Shape of Dataframe after modification: {}".format(str(df.shape)))
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.graphics.gofplots import qqplot
 
+sns.kdeplot(data=df, x = np.log10(df['installCount'].values), fill=True)
+plt.show()
+fig = qqplot(np.log10(df['installCount']), stats.norm, fit=True, line='45')
+ax = fig.axes[0]
+ax.set_title("QQ Plot - Installs (Log) vs. Normal Distribution")
+plt.show()
+from scipy.stats import shapiro
+def shapiro_test(x, title, alpha = 0.05):
+    stat, p = shapiro(x)
+    # print(f'Shapiro-Wilk test: statistics= {stat:.2f} p-value = {p:.2f}')
+    print(f'Shapiro-Wilk test: statistics= {stat:.2f} p-value = {p}')
+    print(f'Shapiro-Wilk test: {title} dataset looks normal (fail to reject H0)' if p > alpha else f'Shapiro-Wilk test: {title} dataset does not look normal (reject H0)')
+
+shapiro_test(df['installCount'], 'Before box-cox', 0.01)
+
+df['box_cox_installs'], fitted_lambda = stats.boxcox(df['installCount'])
+plt.show()
+sns.kdeplot(data=df, x =df['box_cox_installs'], fill=True)
+fig = qqplot(df['box_cox_installs'], stats.norm, fit=True, line='45')
+ax = fig.axes[0]
+ax.set_title("QQ Plot - Installs vs. Normal Distribution")
+plt.show()
+
+shapiro_test(df['box_cox_installs'], 'After box-cox', 0.01)
+df_standard['box_cox_installs'], _ = stats.boxcox(df_standard['installCount'])
 print("=========================================")
 print("Covariance Matrix")
 print("Output: Covariance Matrix")
@@ -403,6 +418,25 @@ print("Balanced/Imbalanced Target Distribution")
 print("Output: Bar Chart of Target Distribution")
 print("=========================================")
 value_counts = pd.DataFrame(df['installRange'].value_counts())
+total_count = value_counts['count'].sum()
+value_counts['percentage'] = value_counts['count'] / total_count * 100
+plt.figure(figsize=(10, 5))
+plt.barh(value_counts.index, value_counts['percentage'], color='blue')
+plt.xlabel('Percentage (%)')
+plt.ylabel('Range')
+plt.title('Target Distribution - Install Range')
+plt.grid(axis='x')
+xticks = range(0, 51, 10)
+plt.xticks(xticks, [f"{x}%" for x in xticks])
+for index, value in enumerate(value_counts['percentage']):
+    plt.text(value, index, f"{value:.2f}%", va='center')
+plt.show()
+del value_counts, total_count
+gc.collect()
+
+df['installQcut'] = pd.qcut(df['installCount'], 3, labels=['Low', 'Medium', 'High'])
+df_standard['installQcut'] = pd.qcut(df_standard['installCount'], 3, labels=['Low', 'Medium', 'High'])
+value_counts = pd.DataFrame(df['installQcut'].value_counts())
 total_count = value_counts['count'].sum()
 value_counts['percentage'] = value_counts['count'] / total_count * 100
 plt.figure(figsize=(10, 5))
