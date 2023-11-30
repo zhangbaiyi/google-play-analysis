@@ -434,8 +434,10 @@ plt.show()
 del value_counts, total_count
 gc.collect()
 
-df['installQcut'] = pd.qcut(df['installCount'], 3, labels=['Low', 'Medium', 'High'])
-df_standard['installQcut'] = pd.qcut(df_standard['installCount'], 3, labels=['Low', 'Medium', 'High'])
+df['installQcut'] = pd.qcut(df['installCount'], 2, labels=['Low', 'High'])
+df_standard['installQcut'] = pd.qcut(df_standard['installCount'], 2, labels=['Low', 'High'])
+df['installQcut'].replace({'Low': 0, 'High': 1}, inplace=True)
+df_standard['installQcut'].replace({'Low': 0, 'High': 1}, inplace=True)
 value_counts = pd.DataFrame(df['installQcut'].value_counts())
 total_count = value_counts['count'].sum()
 value_counts['percentage'] = value_counts['count'] / total_count * 100
@@ -461,5 +463,10 @@ if not os.path.exists('output'):
     os.makedirs('output')
     if not os.path.exists('output/preprocessed_standard.csv'):
         df_standard.to_csv('output/preprocessed_standard.csv',index=False)
+        print("File preprocessed_standard.csv created")
     if not os.path.exists('output/preprocessed.csv'):
         df.to_csv('output/preprocessed.csv',index=False)
+        print("File preprocessed.csv created")
+else:
+    print("Folder output already exists."
+          "To re-create the files, please delete the folder and run the script again.")
