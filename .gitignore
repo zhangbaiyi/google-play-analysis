@@ -4,3 +4,5 @@ Google-Playstore.csv
 .DS_Store
 output/preprocessed_standard.csv
 output/preprocessed.csv
+output/association_rules.csv
+output/kmeans_optimization.csv
