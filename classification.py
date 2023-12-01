@@ -1,10 +1,15 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import GridSearchCV, cross_val_score
+from sklearn.model_selection import GridSearchCV
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
-
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import StackingClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, roc_auc_score, roc_curve, f1_score
 from sklearn.metrics import accuracy_score
@@ -15,11 +20,45 @@ from sklearn.neighbors import KNeighborsClassifier
 df = pd.read_csv('output/preprocessed.csv')
 df_standard = pd.read_csv('output/preprocessed_standard.csv')
 
-fig, ax = plt.subplots(4, 3, figsize=(20, 15))
+fig, ax = plt.subplots(3, 3, figsize=(20, 15))
 master_table = PrettyTable()
 master_table.title = "Classifier Performance"
 master_table.float_format = ".3"
 master_table.field_names = ["Classifier", "Confusion Matrix", "Precision", "Recall", "Specificity", "F1 Score", "AUC"]
+
+
+def plot_roc_curve_plt(fpr, tpr, auc, title):
+    plt.figure(figsize=(8, 8))
+    plt.plot(fpr, tpr, label='ROC curve (area = %0.2f)' % auc)
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlim([-0.05, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title(title)
+    plt.grid(True)
+    plt.legend(loc="lower right")
+    plt.gca().set_aspect('equal', 'box')
+    plt.tight_layout()
+    plt.show()
+
+
+def elbow_method_knn(my_X, my_y):
+    plt.figure(figsize=(10, 10))
+    X_train, X_test, y_train, y_test = train_test_split(my_X, my_y, test_size=0.2, random_state=42,
+                                                        stratify=y)
+    error_rate = []
+    for i in range(1, 30):
+        scope_knn = KNeighborsClassifier(n_neighbors=i, metric='manhattan', weights='distance')
+        scope_knn.fit(X_train, y_train)
+        pred = scope_knn.predict(X_test)
+        error_rate.append(np.mean(pred != y_test))
+    plt.plot(range(1, 30, 1), error_rate, marker='o', markersize=9)
+    plt.ylabel('Error Rate')
+    plt.xlabel('k')
+    plt.xticks(np.arange(1, 30, 1))
+    plt.title('Error Rate vs. K Value - (Elbow Method)')
+    plt.show()
 
 
 def optimize_cost_complexity_pruning_alpha(my_X, my_y, random_state=42):
@@ -176,7 +215,6 @@ plot_roc_curve(ax[0, 1],
                'Decision Tree Post-pruning')
 
 # Optimize Cost Complexity Pruning Alpha
-# optimize_cost_complexity_pruning_alpha(X, y)
 
 # Standardize Data
 X = df_standard.drop(columns=['installRange', 'installCount', 'box_cox_installs', 'installQcut'], axis=1)
@@ -211,9 +249,9 @@ print("====================================")
 print("K-Nearest Neighbors")
 print("====================================")
 
-knn_tuned_parameters = [{'n_neighbors': [1, 3, 5, 7, 9, 11, 13, 15],
-                         'weights': ['uniform', 'distance'],
-                         'metric': ['euclidean', 'manhattan', 'minkowski']}]
+knn_tuned_parameters = [{'n_neighbors': np.arange(1, 30, 1),
+                         'weights': ['distance'],
+                         'metric': ['manhattan', 'minkowski']}]
 knn, knn_X_test, knn_y_test, knn_grid_search = (
     classifier_pipeline(KNeighborsClassifier(), knn_tuned_parameters, X, y))
 knn_metrics = classifier_metrics(knn,
@@ -234,11 +272,10 @@ plot_roc_curve(ax[1, 0],
 print("====================================")
 print("Supporting Vector Machine")
 print("====================================")
-from sklearn.svm import SVC
 
-svc_tuned_parameters = [{'kernel': ['rbf', 'linear', 'poly', 'sigmoid']}]
+svc_tuned_parameters = [{'kernel': ['rbf', 'linear', 'poly']}]
 svc, svc_X_test, svc_y_test, svc_grid_search = (
-    classifier_pipeline(SVC(random_state=42), svc_tuned_parameters, X, y))
+    classifier_pipeline(SVC(random_state=42, probability=True), svc_tuned_parameters, X, y))
 svc_metrics = classifier_metrics(svc,
                                  svc_y_test,
                                  svc_X_test,
@@ -257,7 +294,6 @@ plot_roc_curve(ax[1, 1],
 print("====================================")
 print("Naive Bayes")
 print("====================================")
-from sklearn.naive_bayes import GaussianNB
 
 naive_bayes_tuned_parameters = [{'var_smoothing': [1e-9, 1e-8, 1e-7, 1e-6]}]
 naive_bayes, naive_bayes_X_test, naive_bayes_y_test, naive_bayes_grid_search = (
@@ -272,9 +308,117 @@ naive_bayes_fpr, naive_bayes_tpr = classifier_fpr_tpr(naive_bayes,
 output_performance_to_table(classifer_title="Naive Bayes",
                             classifier_metrics=naive_bayes_metrics)
 plot_roc_curve(ax[1, 2],
-                naive_bayes_fpr,
-                naive_bayes_tpr,
-                naive_bayes_metrics.roc_auc,
-                'Naive Bayes')
+               naive_bayes_fpr,
+               naive_bayes_tpr,
+               naive_bayes_metrics.roc_auc,
+               'Naive Bayes')
 
+print("====================================")
+print("Ensemble Learning")
+print("Random Forest")
+print("====================================")
 
+# Best parameters set found on development set: {'criterion': 'gini', 'max_depth': 4, 'max_features': 10,
+# 'min_samples_leaf': 1, 'min_samples_split': 2, 'splitter': 'best'}
+random_forest_tuned_parameters = [{'n_estimators': [100, 500],
+                                   'criterion': ['gini'],
+                                   'max_depth': [4],
+                                   'min_samples_split': [2],
+                                   'min_samples_leaf': [1],
+                                   'max_features': [10],
+                                   'bootstrap': [True, False]}]
+random_forest, random_forest_X_test, random_forest_y_test, random_forest_grid_search = (
+    classifier_pipeline(RandomForestClassifier(random_state=42), random_forest_tuned_parameters, X, y))
+random_forest_metrics = classifier_metrics(random_forest,
+                                           random_forest_y_test,
+                                           random_forest_X_test,
+                                           random_forest_grid_search)
+random_forest_fpr, random_forest_tpr = classifier_fpr_tpr(random_forest,
+                                                          random_forest_y_test,
+                                                          random_forest_X_test)
+output_performance_to_table(classifer_title="Random Forest Bagging",
+                            classifier_metrics=random_forest_metrics)
+plot_roc_curve(ax[2, 0],
+               random_forest_fpr,
+               random_forest_tpr,
+               random_forest_metrics.roc_auc,
+               'Random Forest Bagging')
+
+print("====================================")
+print("Ensemble Learning")
+print("Stacking")
+print("====================================")
+
+stacking_tuned_parameters = [{'n_jobs': [-1]}]
+stacking, stacking_X_test, stacking_y_test, stacking_grid_search = (
+    classifier_pipeline(StackingClassifier(estimators=[('knn', knn),
+                                                       ('svc', svc),
+                                                       ('naive_bayes', naive_bayes)]),
+                        stacking_tuned_parameters, X, y))
+stacking_metrics = classifier_metrics(stacking,
+                                      stacking_y_test,
+                                      stacking_X_test,
+                                      stacking_grid_search)
+stacking_fpr, stacking_tpr = classifier_fpr_tpr(stacking,
+                                                stacking_y_test,
+                                                stacking_X_test)
+output_performance_to_table(classifer_title="Stacking",
+                            classifier_metrics=stacking_metrics)
+plot_roc_curve(ax[2, 1],
+               stacking_fpr,
+               stacking_tpr,
+               stacking_metrics.roc_auc,
+               'Stacking')
+
+print("====================================")
+print("Ensemble Learning")
+print("Boosting")
+print("====================================")
+
+boosting_tuned_parameters = [{'n_estimators': [50, 200, 500],
+                              'learning_rate': [0.1, 0.5, 1.0]}]
+boosting, boosting_X_test, boosting_y_test, boosting_grid_search = (
+    classifier_pipeline(AdaBoostClassifier(random_state=42), boosting_tuned_parameters, X, y))
+boosting_metrics = classifier_metrics(boosting,
+                                      boosting_y_test,
+                                      boosting_X_test,
+                                      boosting_grid_search)
+boosting_fpr, boosting_tpr = classifier_fpr_tpr(boosting,
+                                                boosting_y_test,
+                                                boosting_X_test)
+output_performance_to_table(classifer_title="Boosting",
+                            classifier_metrics=boosting_metrics)
+plot_roc_curve(ax[2, 2],
+               boosting_fpr,
+               boosting_tpr,
+               boosting_metrics.roc_auc,
+               'Boosting')
+
+print("====================================")
+print("Neural Network")
+print("====================================")
+
+neural_network_tuned_parameters = [{'hidden_layer_sizes': [(100,), (100, 100)],
+                                    'activation': ['relu'],
+                                    'solver': ['adam'],
+                                    'learning_rate': ['constant']}]
+neural_network, neural_network_X_test, neural_network_y_test, neural_network_grid_search = (
+    classifier_pipeline(MLPClassifier(random_state=42), neural_network_tuned_parameters, X, y))
+neural_network_metrics = classifier_metrics(neural_network,
+                                            neural_network_y_test,
+                                            neural_network_X_test,
+                                            neural_network_grid_search)
+neural_network_fpr, neural_network_tpr = classifier_fpr_tpr(neural_network,
+                                                            neural_network_y_test,
+                                                            neural_network_X_test)
+output_performance_to_table(classifer_title="Neural Network",
+                            classifier_metrics=neural_network_metrics)
+plt.show()
+
+plot_roc_curve_plt(neural_network_fpr, neural_network_tpr, neural_network_metrics.roc_auc, 'Neural Network')
+elbow_method_knn(X, y)
+optimize_cost_complexity_pruning_alpha(X, y)
+
+print(master_table)
+
+master_table_latex = master_table.get_latex_string()
