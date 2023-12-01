@@ -15,7 +15,7 @@ def optimize_k(x, kmax):
     for k in range(2, kmax + 1):
         kmeans = KMeans(n_clusters=k, init='k-means++', n_init=10).fit(x)
         labels = kmeans.labels_
-        sil.append(silhouette_score(X, labels, metric='euclidean'))
+        sil.append(silhouette_score(x, labels, metric='euclidean'))
         centroids = kmeans.cluster_centers_
         pred_clusters = kmeans.predict(x)
         curr_sse = 0
