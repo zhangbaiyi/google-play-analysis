@@ -633,8 +633,6 @@ def area_plot(_df):
     plt.show()
 
 
-
-
 if __name__ == '__main__':
     start_time = pd.Timestamp.now()
     df = preprocessing()
