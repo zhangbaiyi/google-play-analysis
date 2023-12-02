@@ -154,6 +154,9 @@ def preprocessing():
     plt.ylabel('Features')
     plt.title('Percentage of N/A Values')
     plt.grid()
+    if not os.path.exists('plots'):
+        os.makedirs('plots')
+    plt.savefig('plots/na_percentage.png')
     plt.show()
     _df.drop(columns=['Developer Website', 'Developer Email', 'Developer Id', 'Privacy Policy'], inplace=True)
     _df.drop(columns=['App Id'], inplace=True)
@@ -179,6 +182,7 @@ def preprocessing():
     currency_pie['Others'] = currency_values_count[1:].sum()
     currency_pie.plot(kind='pie', autopct='%1.1f%%', labels=['USD', 'Others'], ylabel='Currency',
                       title='Currency Distribution')
+    plt.savefig('plots/currency_distribution.png')
     plt.show()
     del currency_values_count, currency_pie
     gc.collect()
@@ -231,6 +235,7 @@ def preprocessing():
     plt.title('Size Distribution')
     plt.xlabel('Size (MB)')
     plt.ylabel('Count')
+    plt.savefig('plots/size_distribution.png')
     plt.show()
     _df.drop(columns=['Size'], inplace=True)
     print("Shape of Dataframe after modification: {}".format(str(_df.shape)))
@@ -304,6 +309,7 @@ def preprocessing():
     plt.yticks(range(len(indices)), [features[i] for i in indices])
     plt.xlabel('Relative Importance')
     plt.tight_layout()
+    plt.savefig('plots/feature_importance_1.png')
     plt.show()
     del rfa_X, rfa_y, rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test, rfa, rfa_y_pred, importances, indices, features
     gc.collect()
@@ -340,6 +346,7 @@ def preprocessing():
     plt.ylabel('Cumulative Explained Variance Ratio')
     plt.title('PCA - Cumulative Explained Variance Ratio')
     plt.grid()
+    plt.savefig('plots/pca_explained_variance_ratio.png')
     plt.show()
     del pca_X, pca_y, pca, pca_X_transform, pca_columns_to_standardize
     gc.collect()
@@ -426,20 +433,25 @@ def preprocessing():
 
 
     sns.kdeplot(data=_df, x=np.log10(_df['installCount'].values), fill=True)
+    plt.savefig('plots/kde_1.png')
     plt.show()
     fig = qqplot(np.log10(_df['installCount']), stats.norm, fit=True, line='45')
     ax = fig.axes[0]
     ax.set_title("QQ Plot - Installs (Log) vs. Normal Distribution")
+    plt.savefig('plots/qqplot_1.png')
     plt.show()
 
     shapiro_test(_df['installCount'], 'Before box-cox', 0.01)
 
     _df['box_cox_installs'], fitted_lambda = stats.boxcox(_df['installCount'])
-    plt.show()
     sns.kdeplot(data=_df, x=_df['box_cox_installs'], fill=True)
+    plt.savefig('plots/kde_2.png')
+    plt.show()
+
     fig = qqplot(_df['box_cox_installs'], stats.norm, fit=True, line='45')
     ax = fig.axes[0]
     ax.set_title("QQ Plot - Installs vs. Normal Distribution")
+    plt.savefig('plots/qqplot_2.png')
     plt.show()
 
     shapiro_test(_df['box_cox_installs'], 'After box-cox', 0.01)
@@ -453,6 +465,7 @@ def preprocessing():
     sns.heatmap(covariance_matrix, annot=True, fmt=".5f", cmap='coolwarm', linewidths=0.5)
     plt.title('Covariance Matrix')
     plt.tight_layout()
+    plt.savefig('plots/covariance_matrix.png')
     plt.show()
     del covariance_matrix
     gc.collect()
@@ -466,6 +479,7 @@ def preprocessing():
     sns.heatmap(corr_matrix, annot=True, fmt=".5f", cmap='coolwarm', linewidths=0.5)
     plt.title('Pearson Correlation Coefficients Matrix')
     plt.tight_layout()
+    plt.savefig('plots/correlation_matrix.png')
     plt.show()
     del corr_matrix
     gc.collect()
@@ -487,6 +501,7 @@ def preprocessing():
     plt.xticks(xticks, [f"{x}%" for x in xticks])
     for index, value in enumerate(value_counts['percentage']):
         plt.text(value, index, f"{value:.2f}%", va='center')
+    plt.savefig('plots/target_distribution.png')
     plt.show()
     del value_counts, total_count
     gc.collect()
@@ -508,6 +523,7 @@ def preprocessing():
     plt.xticks(xticks, [f"{x}%" for x in xticks])
     for index, value in enumerate(value_counts['percentage']):
         plt.text(value, index, f"{value:.2f}%", va='center')
+    plt.savefig('plots/target_distribution_2.png')
     plt.show()
     del value_counts, total_count
     gc.collect()
@@ -601,6 +617,7 @@ def train_random_forest(X, y):
     plt.yticks(range(len(indices)), [features[i] for i in indices])
     plt.xlabel("Relative Importance")
     plt.tight_layout()
+    plt.savefig('plots/feature_importance_2.png')
     plt.show()
 
     feature_importance_df = pd.DataFrame({'feature': features, 'importance': importances})
@@ -637,6 +654,8 @@ def plot_results(_results_df, _scores, _installs_mean, _installs_std):
     plt.grid()
     plt.legend()
     plt.tight_layout()
+    plt.title("Predicted vs Actual")
+    plt.savefig('plots/regression_predicted_vs_actual.png')
     plt.show()
 
     plt.figure(figsize=(12, 8))
@@ -651,15 +670,17 @@ def plot_results(_results_df, _scores, _installs_mean, _installs_std):
     plt.tight_layout()
     plt.legend()
     plt.title("Predicted vs Actual with Confidence Interval - First 100 Samples")
+    plt.savefig('plots/regression_predicted_vs_actual_ci.png')
     plt.show()
 
 
 
 
-def regression(_df_standard):
-    _df_standard.drop(columns=['installRange', 'box_cox_installs', 'installQcut'], inplace=True)
-    _df_standard['installCount'] = StandardScaler().fit_transform(_df_standard[['installCount']])
-    _df = _df_standard.copy()
+def regression(_df):
+    df = _df.copy()
+    df.drop(columns=['installRange', 'box_cox_installs', 'installQcut'], inplace=True)
+    df['installCount'] = StandardScaler().fit_transform(df[['installCount']])
+    _df = df.copy()
     X = _df.drop(columns=['installCount'])
     installs_mean = _df['installCount'].mean()
     installs_std = _df['installCount'].std()
@@ -718,6 +739,7 @@ def plot_roc_curve_plt(fpr, tpr, auc, title):
     plt.legend(loc="lower right")
     plt.gca().set_aspect('equal', 'box')
     plt.tight_layout()
+
     plt.show()
 
 
@@ -753,7 +775,7 @@ def optimize_cost_complexity_pruning_alpha(my_X, my_y, random_state=42):
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.set_xlabel("alpha")
     ax.set_ylabel("accuracy")
-    ax.set_title("Accuracy vs alpha for training and testing sets")
+    ax.set_title("Accuracy vs Alpha for Training and Testing sets")
     ax.plot(ccp_alphas, train_scores, marker='o', label="train",
             drawstyle="steps-post")
     ax.plot(ccp_alphas, test_scores, marker='o', label="test",
@@ -802,6 +824,7 @@ def plot_roc_curve(axis, fpr, tpr, auc, title):
     axis.grid(True)
     axis.set_aspect('equal', 'box')
     axis.legend(loc="lower right")
+    axis.savefig('plots/roc_curve_{}.png'.format(title))
 
 
 def classifier_metrics(classifier, y_test, X_test, grid_search=None):
@@ -814,7 +837,7 @@ def classifier_fpr_tpr(classifier, y_test, X_test):
     return fpr, tpr
 
 
-def classfication(outer_df, outer_df_standard):
+def classification(outer_df, outer_df_standard):
     # _df = pd.read_csv('output/preprocessed.csv')
     # _df_standard = pd.read_csv('output/preprocessed_standard.csv')
     _df = outer_df.copy()
@@ -1087,6 +1110,7 @@ def classfication(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Neural Network",
                                 classifier_metrics=neural_network_metrics,
                                 master_table=master_table)
+    plt.savefig('plots/master_roc_curve.png')
     plt.show()
     plot_roc_curve_plt(neural_network_fpr, neural_network_tpr, neural_network_metrics.roc_auc, 'Neural Network')
     elbow_method_knn(X, y)
@@ -1142,6 +1166,7 @@ def plot_pca_clusters(X, clusters, model, title, cluster_ids_to_plot=None):
     plt.legend()
     plt.grid()
     plt.tight_layout()
+    plt.savefig('plots/{}.png'.format(title))
     plt.show()
 
 
@@ -1155,6 +1180,7 @@ def plot_elbow_method(sse, kmax):
     plt.ylabel('WSS')
     plt.title('K selection in K-means++ - Elbow Method')
     plt.tight_layout()
+    plt.savefig('plots/kmeans_elbow_method.png')
     plt.show()
 
 
@@ -1167,6 +1193,7 @@ def plot_silhouette_method(sil, kmax):
     plt.ylabel('Silhouette Score')
     plt.title('K selection in K-means++ - Silhouette Method')
     plt.tight_layout()
+    plt.savefig('plots/kmeans_silhouette_method.png')
     plt.show()
 
 
@@ -1187,7 +1214,12 @@ def clustering(outer_df):
     plot_elbow_method(sse, k_max)
     plot_silhouette_method(sil, k_max)
 
-    n_clusters = 6
+    print("=========================================")
+    print("K-means++")
+    print("Output: K-means++ Cluster Visualization by PCA")
+    print("=========================================")
+
+    n_clusters = 7
     kmeans = KMeans(n_clusters=n_clusters, init='k-means++', n_init=10)
     clusters = kmeans.fit_predict(X)
     plot_pca_clusters(X, clusters, kmeans, 'Cluster Visualization with PCA - K-means++')
@@ -1202,7 +1234,7 @@ def clustering(outer_df):
     clusters = dbscan.fit_predict(X)
     cluster_counts = Counter(clusters)
     top_clusters = [cluster[0] for cluster in cluster_counts.most_common(10) if cluster[0] != -1]
-    plot_pca_clusters(X, clusters, None, 'Top 10 Clusters with PCA - DBSCAN', top_clusters)
+    plot_pca_clusters(X, clusters, None, 'Cluster Visualization with PCA - DBSCAN - Top 10 Clusters', top_clusters)
 
     return results
 
@@ -1262,9 +1294,11 @@ if __name__ == '__main__':
     # Calculate run time
     start_time = time.time()
     df, df_standard = preprocessing()
-    backwise_table, backwise_ols_summary, random_forest_table = regression(df_standard)
-    classification_master_table, classification_master_table_latex, classifier_metrics_list = classfication(df, df_standard)
-    kmeans_results = clustering(df)
+    # df = pd.read_csv('output/preprocessed.csv')
+    # df_standard = pd.read_csv('output/preprocessed_standard.csv')
+    backwise_table, backwise_ol_summary, random_forest_table = regression(df_standard)
+    classification_master_table, classification_master_table_latex, classifier_metrics_list = classification(df, df_standard)
+    kmeans_results = clustering(df_standard)
     apriori_result_table, association_rule_table = association_rule(df)
     print("Total Runtime: %s seconds" % (time.time() - start_time))
 
