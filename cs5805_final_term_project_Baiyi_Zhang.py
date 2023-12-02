@@ -1,70 +1,96 @@
 # Google Play Dataset - Preprocessing
-import seaborn as sns
-import time
-import re
-import numpy as np
-import pandas as pd
-pd.options.mode.chained_assignment = None
 
-from sklearn.preprocessing import StandardScaler
-import numpy as np
-import pandas as pd
-from matplotlib import pyplot as plt
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split, KFold, cross_val_score
-from sklearn.metrics import mean_squared_error, make_scorer
-import statsmodels.api as sm
-from prettytable import PrettyTable
-import pandas as pd
-import numpy as np
-import random
-import gc
-import matplotlib.pyplot as plt
-from prettytable import PrettyTable
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.preprocessing import StandardScaler
-from statsmodels.stats.outliers_influence import variance_inflation_factor
+# Standard library imports
 import os
-import scipy.stats as stats
-import matplotlib.pyplot as plt
-import seaborn as sns
-from statsmodels.graphics.gofplots import qqplot
-import pandas as pd
+import re
+import time
+import gc
+import random
+from collections import Counter
+
+# Related third party imports
 import numpy as np
+import pandas as pd
+import scipy.stats as stats
+import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.model_selection import GridSearchCV
+import statsmodels.api as sm
+from scipy.spatial import distance
+from statsmodels.graphics.gofplots import qqplot
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from sklearn.model_selection import KFold, train_test_split, GridSearchCV, cross_val_score
+from sklearn.metrics import (mean_squared_error, make_scorer, classification_report, roc_auc_score,
+                             roc_curve, f1_score, accuracy_score, confusion_matrix)
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, AdaBoostClassifier, StackingClassifier
+from sklearn.decomposition import TruncatedSVD, PCA
+from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import AdaBoostClassifier
 from sklearn.neural_network import MLPClassifier
-from sklearn.ensemble import StackingClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, roc_auc_score, roc_curve, f1_score
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
-from prettytable import PrettyTable
 from sklearn.neighbors import KNeighborsClassifier
-import pandas as pd
-from scipy.spatial import distance
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
-import numpy as np
-from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
-from sklearn.cluster import DBSCAN
-from collections import Counter
-from mlxtend.frequent_patterns import apriori
-from mlxtend.frequent_patterns import association_rules
-import pandas as pd
+from mlxtend.frequent_patterns import apriori, association_rules
 from prettytable import PrettyTable
+
+# Disable specific warnings
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 warnings.simplefilter("ignore", DeprecationWarning)
+
+# Setting pandas options
+pd.options.mode.chained_assignment = None
+
+# import re
+# import time
+# import pandas as pd
+#
+# pd.options.mode.chained_assignment = None
+# from sklearn.model_selection import KFold, cross_val_score
+# from sklearn.metrics import mean_squared_error, make_scorer
+# import statsmodels.api as sm
+# import random
+# import gc
+# from sklearn.ensemble import RandomForestRegressor
+# from sklearn.decomposition import TruncatedSVD
+# from sklearn.preprocessing import StandardScaler
+# from statsmodels.stats.outliers_influence import variance_inflation_factor
+# import os
+# import scipy.stats as stats
+# import seaborn as sns
+# from statsmodels.graphics.gofplots import qqplot
+# from sklearn.model_selection import GridSearchCV
+# from sklearn.tree import DecisionTreeClassifier
+# from sklearn.linear_model import LogisticRegression
+# from sklearn.svm import SVC
+# from sklearn.naive_bayes import GaussianNB
+# from sklearn.ensemble import RandomForestClassifier
+# from sklearn.ensemble import AdaBoostClassifier
+# from sklearn.neural_network import MLPClassifier
+# from sklearn.ensemble import StackingClassifier
+# from sklearn.model_selection import train_test_split
+# from sklearn.metrics import classification_report, roc_auc_score, roc_curve, f1_score
+# from sklearn.metrics import accuracy_score
+# from sklearn.metrics import confusion_matrix
+# from sklearn.neighbors import KNeighborsClassifier
+# from scipy.spatial import distance
+# from sklearn.cluster import KMeans
+# import matplotlib.pyplot as plt
+# import numpy as np
+# from sklearn.decomposition import PCA
+# from sklearn.metrics import silhouette_score
+# from sklearn.cluster import DBSCAN
+# from collections import Counter
+# from mlxtend.frequent_patterns import apriori
+# from mlxtend.frequent_patterns import association_rules
+# import pandas as pd
+# from prettytable import PrettyTable
+# import warnings
+#
+# warnings.filterwarnings('ignore', category=UserWarning)
+# warnings.simplefilter("ignore", DeprecationWarning)
 
 
 def install_groupby(value):
@@ -82,6 +108,8 @@ def install_groupby(value):
         return 'Medium'
     else:
         return 'High'
+
+
 def judge_cat_num(col, df):
     if df[col].dtype == 'float64' or df[col].dtype == 'int64':
         return 'Numerical'
@@ -98,6 +126,7 @@ def check_unique_percentage(col, df):
     ratio = len(df[col].unique()) / len(df[col])
     return f"{ratio:.2%}"
 
+
 def classify_size_column(value):
     if pd.isna(value) or value == 'Varies with device':
         return np.nan
@@ -113,16 +142,17 @@ def classify_size_column(value):
     else:
         return np.nan
 
+
 def shapiro_test(x, title, alpha=0.05):
     from scipy.stats import shapiro
     stat, p = shapiro(x)
     # print(f'Shapiro-Wilk test: statistics= {stat:.2f} p-value = {p:.2f}')
     print(f'Shapiro-Wilk test: statistics= {stat:.2f} p-value = {p}')
-    print(f'Shapiro-Wilk test: {title} dataset looks normal (fail to reject H0)' if p > alpha else f'Shapiro-Wilk test: {title} dataset does not look normal (reject H0)')
+    print(
+        f'Shapiro-Wilk test: {title} dataset looks normal (fail to reject H0)' if p > alpha else f'Shapiro-Wilk test: {title} dataset does not look normal (reject H0)')
 
 
 def preprocessing():
-
     _df = pd.read_csv('Google-Playstore.csv')
     random.seed(5805)
     print("=========================================")
@@ -408,8 +438,8 @@ def preprocessing():
     print("=========================================")
     _df = pd.get_dummies(_df, columns=['category', 'contentRating', 'minAndroidVersion'])
     _df = _df[['ratingCount', 'sizeInMB', 'lastUpdateAgeInDays', 'minAndroidVersion_8', 'appAgeInDays', 'rating',
-             'category_Productivity', 'category_Social', 'isInAppPurchases', 'minAndroidVersion_7', 'installCount',
-             'installRange']]
+               'category_Productivity', 'category_Social', 'isInAppPurchases', 'minAndroidVersion_7', 'installCount',
+               'installRange']]
     for col in _df.columns:
         if _df[col].dtype == 'bool':
             _df[col] = _df[col].astype(int)
@@ -430,7 +460,6 @@ def preprocessing():
     print("Outlier Detection")
     print("Output: Outlier Detection Result")
     print("=========================================")
-
 
     sns.kdeplot(data=_df, x=np.log10(_df['installCount'].values), fill=True)
     plt.savefig('plots/kde_1.png')
@@ -674,8 +703,6 @@ def plot_results(_results_df, _scores, _installs_mean, _installs_std):
     plt.show()
 
 
-
-
 def regression(_df):
     df = _df.copy()
     df.drop(columns=['installRange', 'box_cox_installs', 'installQcut'], inplace=True)
@@ -725,6 +752,7 @@ class ClassifierMetrics:
     def _calculate_specificity(self):
         tn, fp, fn, tp = self.confusion_matrix.ravel()
         return tn / (tn + fp)
+
 
 def plot_roc_curve_plt(fpr, tpr, auc, title):
     plt.figure(figsize=(8, 8))
@@ -813,6 +841,23 @@ def classifier_pipeline(classifier, tuned_parameters, X, y, test_size=0.2, rando
     return grid_search.best_estimator_, X_test, y_test, grid_search
 
 
+def plot_roc_curve_individual(fpr, tpr, auc, title):
+    fig, axis = plt.subplots()
+    axis.plot(fpr, tpr, label='ROC curve (area = %0.2f)' % auc)
+    axis.plot([0, 1], [0, 1], 'k--')
+    axis.set_xlim([-0.05, 1.0])
+    axis.set_ylim([0.0, 1.05])
+    axis.set_xlabel('False Positive Rate')
+    axis.set_ylabel('True Positive Rate')
+    axis.set_title(title)
+    axis.grid(True)
+    axis.set_aspect('equal', 'box')
+    axis.legend(loc="lower right")
+    plt.savefig('plots/individual_roc_curve_{}.png'.format(title))
+    plt.show()
+    plt.close(fig)
+
+
 def plot_roc_curve(axis, fpr, tpr, auc, title):
     axis.plot(fpr, tpr, label='ROC curve (area = %0.2f)' % auc)
     axis.plot([0, 1], [0, 1], 'k--')
@@ -842,7 +887,7 @@ def classification(outer_df, outer_df_standard):
     # _df_standard = pd.read_csv('output/preprocessed_standard.csv')
     _df = outer_df.copy()
     _df_standard = outer_df_standard.copy()
-    fig, ax = plt.subplots(3, 3, figsize=(20, 15))
+    # fig, ax = plt.subplots(3, 3, figsize=(20, 15))
     master_table = PrettyTable()
     master_table.title = "Classifier Performance"
     master_table.float_format = ".3"
@@ -876,8 +921,10 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Decision Tree Pre-pruning",
                                 classifier_metrics=decision_tree_pre_pruning_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[0, 0], decision_tree_pre_pruning_fpr, decision_tree_pre_pruning_tpr,
-                   decision_tree_pre_pruning_metrics.roc_auc, 'Decision Tree Pre-pruning')
+    # plot_roc_curve(ax[0, 0], decision_tree_pre_pruning_fpr, decision_tree_pre_pruning_tpr,
+    #                decision_tree_pre_pruning_metrics.roc_auc, 'Decision Tree Pre-pruning')
+    plot_roc_curve_individual(decision_tree_pre_pruning_fpr, decision_tree_pre_pruning_tpr,
+                              decision_tree_pre_pruning_metrics.roc_auc, 'Decision Tree Pre-pruning')
 
     print("====================================")
     print("Decision Tree")
@@ -897,14 +944,10 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Decision Tree Post-pruning",
                                 classifier_metrics=decision_tree_post_pruning_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[0, 1],
-                   decision_tree_post_pruning_fpr,
-                   decision_tree_post_pruning_tpr,
-                   decision_tree_post_pruning_metrics.roc_auc,
-                   'Decision Tree Post-pruning')
-
-    # Optimize Cost Complexity Pruning Alpha
-
+    plot_roc_curve_individual(decision_tree_post_pruning_fpr,
+                              decision_tree_post_pruning_tpr,
+                              decision_tree_post_pruning_metrics.roc_auc,
+                              'Decision Tree Post-pruning')
     # Standardize Data
     X = _df_standard.drop(columns=['installRange', 'installCount', 'box_cox_installs', 'installQcut'], axis=1)
     y = _df_standard['installQcut']
@@ -929,11 +972,11 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Logistic Regression",
                                 classifier_metrics=logistic_regression_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[0, 2],
-                   logistic_regression_fpr,
-                   logistic_regression_tpr,
-                   logistic_regression_metrics.roc_auc,
-                   'Logistic Regression')
+    plot_roc_curve_individual(
+        logistic_regression_fpr,
+        logistic_regression_tpr,
+        logistic_regression_metrics.roc_auc,
+        'Logistic Regression')
 
     print("====================================")
     print("K-Nearest Neighbors")
@@ -954,11 +997,11 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="K-Nearest Neighbors",
                                 classifier_metrics=knn_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[1, 0],
-                   knn_fpr,
-                   knn_tpr,
-                   knn_metrics.roc_auc,
-                   'K-Nearest Neighbors')
+    plot_roc_curve_individual(
+        knn_fpr,
+        knn_tpr,
+        knn_metrics.roc_auc,
+        'K-Nearest Neighbors')
 
     print("====================================")
     print("Supporting Vector Machine")
@@ -977,11 +1020,11 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Supporting Vector Machine",
                                 classifier_metrics=svc_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[1, 1],
-                   svc_fpr,
-                   svc_tpr,
-                   svc_metrics.roc_auc,
-                   'Supporting Vector Machine')
+    plot_roc_curve_individual(
+        svc_fpr,
+        svc_tpr,
+        svc_metrics.roc_auc,
+        'Supporting Vector Machine')
 
     print("====================================")
     print("Naive Bayes")
@@ -1000,11 +1043,11 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Naive Bayes",
                                 classifier_metrics=naive_bayes_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[1, 2],
-                   naive_bayes_fpr,
-                   naive_bayes_tpr,
-                   naive_bayes_metrics.roc_auc,
-                   'Naive Bayes')
+    plot_roc_curve_individual(
+        naive_bayes_fpr,
+        naive_bayes_tpr,
+        naive_bayes_metrics.roc_auc,
+        'Naive Bayes')
 
     print("====================================")
     print("Ensemble Learning")
@@ -1032,11 +1075,11 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Random Forest Bagging",
                                 classifier_metrics=random_forest_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[2, 0],
-                   random_forest_fpr,
-                   random_forest_tpr,
-                   random_forest_metrics.roc_auc,
-                   'Random Forest Bagging')
+    plot_roc_curve_individual(
+        random_forest_fpr,
+        random_forest_tpr,
+        random_forest_metrics.roc_auc,
+        'Random Forest Bagging')
 
     print("====================================")
     print("Ensemble Learning")
@@ -1059,11 +1102,11 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Stacking",
                                 classifier_metrics=stacking_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[2, 1],
-                   stacking_fpr,
-                   stacking_tpr,
-                   stacking_metrics.roc_auc,
-                   'Stacking')
+    plot_roc_curve_individual(
+        stacking_fpr,
+        stacking_tpr,
+        stacking_metrics.roc_auc,
+        'Stacking')
 
     print("====================================")
     print("Ensemble Learning")
@@ -1084,11 +1127,11 @@ def classification(outer_df, outer_df_standard):
     output_performance_to_table(classifer_title="Boosting",
                                 classifier_metrics=boosting_metrics,
                                 master_table=master_table)
-    plot_roc_curve(ax[2, 2],
-                   boosting_fpr,
-                   boosting_tpr,
-                   boosting_metrics.roc_auc,
-                   'Boosting')
+    plot_roc_curve_individual(
+        boosting_fpr,
+        boosting_tpr,
+        boosting_metrics.roc_auc,
+        'Boosting')
 
     print("====================================")
     print("Neural Network")
@@ -1112,14 +1155,67 @@ def classification(outer_df, outer_df_standard):
                                 master_table=master_table)
     plt.savefig('plots/master_roc_curve.png')
     plt.show()
-    plot_roc_curve_plt(neural_network_fpr, neural_network_tpr, neural_network_metrics.roc_auc, 'Neural Network')
+    plot_roc_curve_individual(neural_network_fpr, neural_network_tpr, neural_network_metrics.roc_auc, 'Neural Network')
+    # plot_roc_curve_plt(neural_network_fpr, neural_network_tpr, neural_network_metrics.roc_auc, 'Neural Network')
     elbow_method_knn(X, y)
     optimize_cost_complexity_pruning_alpha(X, y)
     print(master_table)
     master_table_latex = master_table.get_latex_string()
     classifier_metrics_list = [decision_tree_pre_pruning_metrics, decision_tree_post_pruning_metrics,
-                              logistic_regression_metrics, knn_metrics, svc_metrics, naive_bayes_metrics,
-                              random_forest_metrics, stacking_metrics, boosting_metrics, neural_network_metrics]
+                               logistic_regression_metrics, knn_metrics, svc_metrics, naive_bayes_metrics,
+                               random_forest_metrics, stacking_metrics, boosting_metrics, neural_network_metrics]
+
+    fig, ax = plt.subplots(2, 5, figsize=(25, 15))
+    plot_roc_curve(ax[0, 0], decision_tree_pre_pruning_fpr, decision_tree_pre_pruning_tpr,
+                   decision_tree_pre_pruning_metrics.roc_auc, 'Decision Tree Pre-pruning')
+    plot_roc_curve(ax[0, 1],
+                   decision_tree_post_pruning_fpr,
+                   decision_tree_post_pruning_tpr,
+                   decision_tree_post_pruning_metrics.roc_auc,
+                   'Decision Tree Post-pruning')
+    plot_roc_curve(ax[0, 2],
+                   logistic_regression_fpr,
+                   logistic_regression_tpr,
+                   logistic_regression_metrics.roc_auc,
+                   'Logistic Regression')
+    plot_roc_curve(ax[0, 3],
+                   knn_fpr,
+                   knn_tpr,
+                   knn_metrics.roc_auc,
+                   'K-Nearest Neighbors')
+    plot_roc_curve(ax[0, 4],
+                   svc_fpr,
+                   svc_tpr,
+                   svc_metrics.roc_auc,
+                   'Supporting Vector Machine')
+    plot_roc_curve(ax[1, 0],
+                   naive_bayes_fpr,
+                   naive_bayes_tpr,
+                   naive_bayes_metrics.roc_auc,
+                   'Naive Bayes')
+    plot_roc_curve(ax[1, 1],
+                   random_forest_fpr,
+                   random_forest_tpr,
+                   random_forest_metrics.roc_auc,
+                   'Random Forest Bagging')
+    plot_roc_curve(ax[1, 2],
+                   stacking_fpr,
+                   stacking_tpr,
+                   stacking_metrics.roc_auc,
+                   'Stacking')
+    plot_roc_curve(ax[1, 3],
+                   boosting_fpr,
+                   boosting_tpr,
+                   boosting_metrics.roc_auc,
+                   'Boosting')
+    plot_roc_curve(ax[1, 4],
+                   neural_network_fpr,
+                   neural_network_tpr,
+                   neural_network_metrics.roc_auc,
+                   'Neural Network')
+    plt.savefig('plots/master_roc_curve.png')
+    plt.show()
+
     return master_table, master_table_latex, classifier_metrics_list
 
 
@@ -1156,7 +1252,8 @@ def plot_pca_clusters(X, clusters, model, title, cluster_ids_to_plot=None):
 
     for cluster_id in clusters_to_plot:
         if cluster_id in unique_clusters:  # Check if cluster exists
-            plt.scatter(df_pca[clusters == cluster_id, 0], df_pca[clusters == cluster_id, 1], label=f'Cluster {cluster_id + 1}')
+            plt.scatter(df_pca[clusters == cluster_id, 0], df_pca[clusters == cluster_id, 1],
+                        label=f'Cluster {cluster_id + 1}')
 
     if model is not None and hasattr(model, 'cluster_centers_'):
         pca_centroids = pca.transform(model.cluster_centers_)
@@ -1168,7 +1265,6 @@ def plot_pca_clusters(X, clusters, model, title, cluster_ids_to_plot=None):
     plt.tight_layout()
     plt.savefig('plots/{}.png'.format(title))
     plt.show()
-
 
 
 def plot_elbow_method(sse, kmax):
@@ -1200,7 +1296,7 @@ def plot_silhouette_method(sil, kmax):
 def clustering(outer_df):
     _df = outer_df.copy()
     X = _df.drop(columns=['installCount', 'box_cox_installs', 'installQcut', 'installRange'])
-
+    results_table = PrettyTable()
     k_max = 10
     sse, sil = optimize_k(X, k_max)
     results = pd.DataFrame({'k': np.arange(2, k_max + 1, 1), 'sse': sse, 'sil': sil})
@@ -1209,6 +1305,14 @@ def clustering(outer_df):
         if not os.path.exists('output/kmeans_optimization.csv'):
             results.to_csv('output/kmeans_optimization.csv', index=False)
     results = pd.read_csv('output/kmeans_optimization.csv')
+    results_table.field_names = ['k', 'SSE', 'Silhouette Score']
+    results_table.float_format = '.3'
+    results_table.align["k"] = "r"
+    results_table.align["SSE"] = "r"
+    results_table.align["Silhouette Score"] = "r"
+    for index, row in results.iterrows():
+        results_table.add_row([row['k'], row['sse'], row['sil']])
+    print(results_table)
     sse, sil = results['sse'].values, results['sil'].values
 
     plot_elbow_method(sse, k_max)
@@ -1235,8 +1339,7 @@ def clustering(outer_df):
     cluster_counts = Counter(clusters)
     top_clusters = [cluster[0] for cluster in cluster_counts.most_common(10) if cluster[0] != -1]
     plot_pca_clusters(X, clusters, None, 'Cluster Visualization with PCA - DBSCAN - Top 10 Clusters', top_clusters)
-
-    return results
+    return results_table
 
 
 def association_rule(df):
@@ -1264,7 +1367,7 @@ def association_rule(df):
     _df['lastUpdateAgeInDays_Old'] = _df['lastUpdateAgeInDays'] >= 365
     _df['sizeInMB_Large'] = _df['sizeInMB'] >= 100
     _df.drop(columns=['rating', 'appAgeInDays', 'sizeInMB', 'ratingCount', 'lastUpdateAgeInDays', 'minAndroidVersion_7',
-                     'minAndroidVersion_8', 'installQcut', 'installCount', 'installRange', 'box_cox_installs'],
+                      'minAndroidVersion_8', 'installQcut', 'installCount', 'installRange', 'box_cox_installs'],
              inplace=True)
     _df.replace({True: 1, False: 0}, inplace=True)
 
@@ -1289,6 +1392,10 @@ def association_rule(df):
     print(association_rule_table)
     return apriori_result_table, association_rule_table
 
+def save_table_to_latex_file(table, filename):
+    """Saves a PrettyTable object as a LaTeX table to a text file."""
+    with open(filename, 'w') as file:
+        file.write(table.get_latex_string())
 
 if __name__ == '__main__':
     # Calculate run time
@@ -1297,9 +1404,30 @@ if __name__ == '__main__':
     # df = pd.read_csv('output/preprocessed.csv')
     # df_standard = pd.read_csv('output/preprocessed_standard.csv')
     backwise_table, backwise_ol_summary, random_forest_table = regression(df_standard)
-    classification_master_table, classification_master_table_latex, classifier_metrics_list = classification(df, df_standard)
-    kmeans_results = clustering(df_standard)
+    regression_time = time.time() - start_time
+    classification_master_table, classification_master_table_latex, classifier_metrics_list = classification(df,
+                                                                                                             df_standard)
+    classification_time = time.time() - regression_time
+    kmeans_results_table = clustering(df_standard)
+    kmeans_results_table.get
+    clustering_time = time.time() - classification_time
     apriori_result_table, association_rule_table = association_rule(df)
-    print("Total Runtime: %s seconds" % (time.time() - start_time))
+    association_rule_time = time.time() - clustering_time
 
+    os.makedirs('output', exist_ok=True)
+    save_table_to_latex_file(backwise_table, 'output/backwise_table.txt')
+    save_table_to_latex_file(random_forest_table, 'output/random_forest_table.txt')
+    save_table_to_latex_file(classification_master_table, 'output/classification_master_table.txt')
+    save_table_to_latex_file(kmeans_results_table, 'output/kmeans_results_table.txt')
+    save_table_to_latex_file(apriori_result_table, 'output/apriori_result_table.txt')
+    save_table_to_latex_file(association_rule_table, 'output/association_rule_table.txt')
+
+    print("=========================================")
+    print("Total Runtime: %s seconds" % (time.time() - start_time))
+    print("=========================================")
+    print("Regression Runtime: %s seconds" % regression_time)
+    print("Classification Runtime: %s seconds" % classification_time)
+    print("Clustering Runtime: %s seconds" % clustering_time)
+    print("Association Rule Runtime: %s seconds" % association_rule_time)
+    print("=========================================")
 
