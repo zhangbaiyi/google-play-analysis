@@ -60,10 +60,10 @@ def plot_elbow_method(sse, kmax):
     plt.figure(figsize=(10, 10))
     plt.plot(np.arange(2, kmax + 1, 1), sse)
     plt.xticks(np.arange(2, kmax + 1, 1))
-    plt.grid()
     plt.xlabel('k')
     plt.ylabel('WSS')
     plt.title('K selection in K-means++ - Elbow Method')
+    plt.grid()
     plt.tight_layout()
     plt.show()
 
@@ -93,7 +93,7 @@ sse, sil = results['sse'].values, results['sil'].values
 plot_elbow_method(sse, k_max)
 plot_silhouette_method(sil, k_max)
 
-n_clusters = 6
+n_clusters = 7
 kmeans = KMeans(n_clusters=n_clusters, init='k-means++', n_init=10)
 clusters = kmeans.fit_predict(X)
 plot_pca_clusters(X, clusters, kmeans, 'Cluster Visualization with PCA - K-means++')
