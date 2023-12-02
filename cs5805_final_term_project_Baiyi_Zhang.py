@@ -869,7 +869,6 @@ def plot_roc_curve(axis, fpr, tpr, auc, title):
     axis.grid(True)
     axis.set_aspect('equal', 'box')
     axis.legend(loc="lower right")
-    axis.savefig('plots/roc_curve_{}.png'.format(title))
 
 
 def classifier_metrics(classifier, y_test, X_test, grid_search=None):
