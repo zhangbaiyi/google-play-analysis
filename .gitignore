@@ -6,3 +6,5 @@ output/preprocessed_standard.csv
 output/preprocessed.csv
 output/association_rules.csv
 output/kmeans_optimization.csv
+output/visualization.csv
+plots/*
