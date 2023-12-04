@@ -8,3 +8,9 @@ output/association_rules.csv
 output/kmeans_optimization.csv
 output/visualization.csv
 plots/*
+output/apriori_result_table.txt
+output/association_rule_table.txt
+output/backwise_table.txt
+output/kmeans_optimization1.csv
+output/kmeans_results_table.txt
+output/random_forest_table.txt
