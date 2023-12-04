@@ -1301,9 +1301,11 @@ def clustering(outer_df):
     results = pd.DataFrame({'k': np.arange(2, k_max + 1, 1), 'sse': sse, 'sil': sil})
     if not os.path.exists('output'):
         os.makedirs('output')
-        if not os.path.exists('output/kmeans_optimization.csv'):
-            results.to_csv('output/kmeans_optimization.csv', index=False)
-    results = pd.read_csv('output/kmeans_optimization.csv')
+        results.to_csv('output/kmeans_optimization.csv', index=False)
+    else:
+        results.to_csv('output/kmeans_optimization.csv', index=False)
+    if os.path.exists('output/kmeans_optimization.csv'):
+        results = pd.read_csv('output/kmeans_optimization.csv')
     results_table.field_names = ['k', 'SSE', 'Silhouette Score']
     results_table.float_format = '.3'
     results_table.align["k"] = "r"
@@ -1403,15 +1405,18 @@ if __name__ == '__main__':
     # df = pd.read_csv('output/preprocessed.csv')
     # df_standard = pd.read_csv('output/preprocessed_standard.csv')
     backwise_table, backwise_ol_summary, random_forest_table = regression(df_standard)
-    regression_time = time.time() - start_time
+    regression_time_interval = time.time() - start_time
+    classification_start_time = time.time()
     classification_master_table, classification_master_table_latex, classifier_metrics_list = classification(df,
                                                                                                              df_standard)
-    classification_time = time.time() - regression_time
+
+    classification_time = time.time() - classification_start_time
+    clustering_start_time = time.time()
     kmeans_results_table = clustering(df_standard)
-    kmeans_results_table.get
-    clustering_time = time.time() - classification_time
+    clustering_time = time.time() - clustering_start_time
+    association_rule_start_time = time.time()
     apriori_result_table, association_rule_table = association_rule(df)
-    association_rule_time = time.time() - clustering_time
+    association_rule_time = time.time() - association_rule_start_time
 
     os.makedirs('output', exist_ok=True)
     save_table_to_latex_file(backwise_table, 'output/backwise_table.txt')
@@ -1424,7 +1429,7 @@ if __name__ == '__main__':
     print("=========================================")
     print("Total Runtime: %s seconds" % (time.time() - start_time))
     print("=========================================")
-    print("Regression Runtime: %s seconds" % regression_time)
+    print("Regression Runtime: %s seconds" % regression_time_interval)
     print("Classification Runtime: %s seconds" % classification_time)
     print("Clustering Runtime: %s seconds" % clustering_time)
     print("Association Rule Runtime: %s seconds" % association_rule_time)
