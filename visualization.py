@@ -64,6 +64,8 @@ def shapiro_test(x, title, alpha=0.05):
     return shapiro_test_result
 
 
+
+
 # del pca_X, pca_y, pca, pca_X_transform, pca_columns_to_standardize
 # gc.collect()
 #
@@ -142,10 +144,19 @@ def preprocessing():
     _df.reset_index(drop=True, inplace=True)
     _df.rename(columns=rename_dict, inplace=True)
     print(_df.shape)
-    print(_df.head(5))
+    print(_df.head(5).to_string())
+    print("=======================================")
+    print("NAN values after preprocessing")
+    print(_df.isna().sum().sum())
+    print("Duplicate values after preprocessing")
+    print(_df.duplicated().sum().sum())
     if not os.path.exists('output'):
         os.makedirs('output')
     _df.to_csv('output/visualization.csv', index=False)
+    _df_dash = _df.copy()
+    _df_dash = _df_dash.sample(n=10000, random_state=42)
+    _df_dash.to_csv('output/visualization_dash.csv', index=False)
+
     return _df
 
 
@@ -207,6 +218,17 @@ def outlier_detect(df):
     upper_bound = q3 + 1.5 * iqr
     lower_bound, upper_bound = 10 ** lower_bound, 10 ** upper_bound
     df = df[(df['Installs'] >= lower_bound) & (df['Installs'] <= upper_bound)]
+    print("=========================================")
+    print("IQR Outlier Detection - Installs")
+    print("Q1 - Log: ", q1)
+    print("Q3 - Log:", q3)
+    print("IQR - Log: ", iqr)
+    print("Lower Bound - Actual: ", lower_bound)
+    print("Upper Bound - Actual: ", upper_bound)
+    print(f"Actual installs outside of the range [{lower_bound:.2f},{upper_bound:.2f}] are removed")
+    print("=========================================")
+
+
 
     fig, ax = plt.subplots()
     df_numeric = df.select_dtypes(include=np.number).copy()
@@ -242,35 +264,49 @@ def principle_component_analysis(df):
     for col in pca_X.columns:
         if pca_X[col].dtype == 'bool':
             pca_X[col] = pca_X[col].astype(int)
-    pca = PCA(n_components='mle', svd_solver='full')
+    pca = PCA(svd_solver='full')
     pca.fit(pca_X)
-    pca_X_transform = pca.transform(pca_X)
-    pca_results_table = PrettyTable()
-    pca_results_table.float_format = '.2'
-    pca_results_table.field_names = ['Original Shape', 'PCA Transformed Shape', 'Original Condition Number',
-                                     'PCA Transformed Condition Number']
-    pca_results_table.add_row([pca_X.shape, pca_X_transform.shape, np.linalg.cond(pca_X),
-                               np.linalg.cond(pca_X_transform)])
-    print(pca_results_table)
+
     plt.figure()
     plt.plot(np.arange(1, len(pca.explained_variance_ratio_) + 1, 1), np.cumsum(pca.explained_variance_ratio_))
     plt.xticks(np.arange(1, len(pca.explained_variance_ratio_) + 1, 5))
     plt.axvline(x=10, color='r', linestyle='--')
-    plt.axhline(y=0.99, color='b', linestyle='--')
+    tenth_components_variance = np.cumsum(pca.explained_variance_ratio_)[9]
+    print("=========================================")
+    print("PCA - Cumulative Explained Variance Ratio")
+    print("Cumulative Explained Variance Ratio of the 10th component: ", tenth_components_variance)
+    print("=========================================")
+    plt.axhline(y=float(tenth_components_variance), color='r', linestyle='--')
     plt.xlabel('Number of Components', fontdict=font_label)
     plt.ylabel('Cumulative Explained Variance Ratio', fontdict=font_label)
     plt.title('PCA - Cumulative Explained Variance Ratio', fontdict=font_title)
     plt.grid()
     plt.savefig('plots/pca_cumulative_explained_variance_ratio.png', dpi=300)
     plt.show()
+    pca = PCA(n_components=10, svd_solver='full')
+    pca.fit(pca_X)
+    pca_X_transform = pca.transform(pca_X)
+    pca_results_table = PrettyTable()
+    pca_results_table.float_format = '.2'
+    pca_results_table.field_names = ['','Original', 'PCA Transformed']
+    pca_results_table.add_row(['Feature Matrix Shape', pca_X.shape, pca_X_transform.shape])
+    pca_results_table.add_row(['Condition Number', np.linalg.cond(pca_X), np.linalg.cond(pca_X_transform)])
+
+
+    original_sinular_values = np.linalg.svd(pca_X, compute_uv=False)
+    pca_transformed_sinular_values = np.linalg.svd(pca_X_transform, compute_uv=False)
+    pca_results_table.add_row(['Singular Values', original_sinular_values, pca_transformed_sinular_values])
+    print(pca_results_table)
+    pca_results_table.align = 'l'
     return pca_results_table
 
 
 def normality_test(_df):
     df = _df.copy()
+    plt.figure(figsize=(12, 8))
     fig = qqplot(np.log10(df['Installs']), stats.norm, fit=True, line='45')
     ax = fig.axes[0]
-    ax.set_title("QQ Plot - Installs (Logarithmic) vs. Normal Distribution", fontdict=font_title)
+    ax.set_title("QQ Plot - Installs (Logarithmic) vs. Normal Dist.", fontdict=font_title)
     ax.set_xlabel('Theoretical Quantiles', fontdict=font_label)
     ax.set_ylabel('Sample Quantiles', fontdict=font_label)
     ax.grid()
@@ -282,6 +318,21 @@ def normality_test(_df):
 
 def data_gaussian_transform(df):
     df['Installs (Log)'] = np.log10(df['Installs'])
+    fig, ax = plt.subplots(1, 2, figsize=(12, 8))
+    qqplot(df['Installs'], stats.norm, fit=True, line='45', ax=ax[0])
+    ax[0].set_title("QQ Plot - Installs vs. Normal Dist.", fontdict=font_title)
+    ax[0].set_xlabel('Theoretical Quantiles', fontdict=font_label)
+    ax[0].set_ylabel('Sample Quantiles', fontdict=font_label)
+    ax[0].grid()
+    qqplot(df['Installs (Log)'], stats.norm, fit=True, line='45', ax=ax[1])
+    ax[1].set_title("QQ Plot - Installs (Logarithmic) vs. Normal Dist.", fontdict=font_title)
+    ax[1].set_xlabel('Theoretical Quantiles', fontdict=font_label)
+    ax[1].set_ylabel('Sample Quantiles', fontdict=font_label)
+    ax[1].grid()
+
+    plt.tight_layout()
+    plt.savefig('plots/data_gaussian_transform_qqplot.png', dpi=300)
+    plt.show()
     return df
 
 
@@ -313,10 +364,11 @@ def correlation_coefficient(_df):
 def count_plot(_df):
     df = _df.copy()
     plt.figure(figsize=(12, 8))
+    df['Free'].replace({True: 'Free', False: 'Paid'}, inplace=True)
     sns.countplot(data=df, x='Category', hue='Free', order=df['Category'].value_counts().index, palette='crest')
     plt.xticks(rotation=90)
     plt.legend()
-    plt.title('Count Plot - Category', fontdict=font_title)
+    plt.title('Count Plot per Category', fontdict=font_title)
     plt.xlabel('Category', fontdict=font_label)
     plt.ylabel('Count', fontdict=font_label)
     plt.tight_layout()
@@ -459,6 +511,7 @@ def swarm_plot(_df):
     plt.ylabel('Rating', fontdict=font_label)
     plt.grid()
     plt.tight_layout()
+    plt.savefig('plots/statistics_analysis_swarmplot_minimum_android_rating.png', dpi=300)
     plt.show()
 
 
@@ -633,10 +686,47 @@ def area_plot(_df):
     plt.show()
 
 
+def subplots_factory(_df, category):
+    df = _df.copy()
+    plt.figure(figsize=(12, 8))
+    df = df[df['Category'] == category].copy()
+    df['Rating'] = df['Rating'].apply(lambda x: int(x))
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+    axs[0].hist(df['Installs (Log)'], bins=30, color='skyblue', edgecolor='black')
+    hist_title = f"Histogram of Installs (Log) for {category} apps"
+    axs[0].set_title(hist_title, fontdict=font_title)
+    axs[0].set_xlabel('Value', fontdict=font_label)
+    axs[0].set_ylabel('Frequency', fontdict=font_label)
+    axs[0].grid()
+    w, l, p = axs[1].pie(df['Rating'].value_counts(), labels=df['Rating'].value_counts().index, autopct='%1.1f%%',
+                         pctdistance=1.0, startangle=90)
+    pctdists = [.5, .5, .5, .2, .5]
+    for t, d in zip(p, pctdists):
+        xi, yi = t.get_position()
+        ri = np.sqrt(xi ** 2 + yi ** 2)
+        phi = np.arctan2(yi, xi)
+        x = d * ri * np.cos(phi)
+        y = d * ri * np.sin(phi)
+        t.set_position((x, y))
+    pie_title = f"Pie Chart of Rating for {category} apps"
+    axs[1].set_title(pie_title, fontdict=font_title)
+    plt.tight_layout()
+    plt.savefig('plots/subplots_{}.png'.format(category), dpi=300)
+    plt.show()
+
+
+def subplots(_df):
+    subplots_factory(_df, 'Education')
+    subplots_factory(_df, 'Social')
+    subplots_factory(_df, 'Entertainment')
+    subplots_factory(_df, 'Productivity')
+
+
 if __name__ == '__main__':
     start_time = pd.Timestamp.now()
     df = preprocessing()
     df = outlier_detect(df)
+    # df = pd.read_csv('output/visualization.csv')
     pca_results = principle_component_analysis(df)
     shapiro_results = normality_test(df)
     df = data_gaussian_transform(df)
@@ -647,6 +737,7 @@ if __name__ == '__main__':
     violin_plot(df)
     dist_plot(df)
     strip_plot(df)
+    swarm_plot(df)
     bar_plot(df)
     pie_chart(df)
     area_plot(df)
@@ -654,5 +745,5 @@ if __name__ == '__main__':
     contour_plot(df)
     cluster_plot(df)
     hexbin_plot(df)
-    swarm_plot(df)
+    subplots(df)
     print("Finished, total time: ", pd.Timestamp.now() - start_time)
