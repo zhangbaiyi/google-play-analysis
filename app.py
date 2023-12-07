@@ -7,7 +7,7 @@ from dash.exceptions import PreventUpdate
 
 df = pd.read_csv('output/visualization_dash.csv')
 app = dash.Dash(__name__, external_stylesheets=['https://codepen.io/chriddyp/pen/bWLwgP.css'])
-
+server = app.server
 def serve_layout():
     return html.Div([
         html.H3("Play Store Insights", style={'textAlign': 'center'}),
@@ -108,5 +108,5 @@ def download_data(n_clicks):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
 
