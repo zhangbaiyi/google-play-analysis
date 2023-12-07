@@ -28,7 +28,7 @@ In Figure X, it is evident that the USD currency represents over 99.9\% of the d
 
 \subsubsection{Duplication between Installs and Minimum Installs}
 % Indentation for this section
-The dataset contains three columns related to app installations, each named with variations of the word Installs. Upon examination, \texttt{maximum\_installs} is found to be a continuous numerical value, whereas Installs and \texttt{minimum\_installs} represent a range, indicating the number of app downloads. Additionally, the Installs column includes characters such as \texttt{+} and \texttt{,}. These issues are fixed.
+The dataset contains three columns related to app installations, each named with variations of the word Installs. Upon examination, \texttt{maximum\_installs} is found to be a continuous numerical value, whereas Installs and \texttt{minimum\_installs} represent a range, indicating the number of app downloads. Additionally, the Installs column includes characters such as \texttt{+} and \texttt{,}. These issues are now fixed.
 
 \subsubsection{Duplication between Free and Price}
 % Indentation for this section
@@ -38,23 +38,29 @@ Given that the price of free items is listed as 0, the Free column becomes redun
 % Indentation for the section content
 \subsubsection{Aggregation of Android versions}
 % Indentation for this section
-The \texttt{minimum\_android} column comprises 27 unique values, each representing a different Android version required for the app's operation. These versions are denoted as strings, such as \texttt{4.1.2}. Given that variations in minor versions do not significantly enhance the analysis of this dataset, a more effective approach involves aggregating these versions by their major numbers (e.g., 4, 5, etc.).
+The \texttt{minimum\_android} column comprises 27 unique values, each representing a different Android version required for the app's operation. These versions are strings that are not likely to be encoded, such as \texttt{4.1.2}. Given that variations in minor versions do not significantly enhance the analysis of this dataset, a more effective approach is to aggregate these versions by their major numbers (e.g., 4, 5, etc.).
+
+\subsection{Down Sampling}
+% Indentation for the section content
+\subsubsection{Slicing the dataset}
+% Indentation for this section
+The dataset has a wide range of data distribution. Install count that is extremely low or high is not the main focus of this analysis. As a result, a slice of data that \texttt{installCount} is between 100k and 10M is extracted for analysis.
 
 \subsection{Dimensionality Reduction}
 \subsubsection{Random Forest Analysis}
 % Indentation for this section
-\textbf{Steps:}
-\begin{enumerate}
-    \item \textbf{Data Preparation}
-    \begin{itemize}
-        \item Remove target variables
-        \item Convert categorical columns into dummy variables using \texttt{pd.get\_dummies}
-    \end{itemize}
-    \item \textbf{Split the data}
-    \item \textbf{Model initialization and training}
-    \item \textbf{Model prediction}
-    \item \textbf{Feature importance visualization}
-\end{enumerate}
+% \textbf{Steps:}
+% \begin{enumerate}
+%     \item \textbf{Data Preparation}
+%     \begin{itemize}
+%         \item Remove target variables
+%         \item Convert categorical columns into dummy variables using \texttt{pd.get\_dummies}
+%     \end{itemize}
+%     \item \textbf{Split the data}
+%     \item \textbf{Model initialization and training}
+%     \item \textbf{Model prediction}
+%     \item \textbf{Feature importance visualization}
+% \end{enumerate}
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{docs//assets/rfa.png}
@@ -81,14 +87,14 @@ The program additionally computed the condition number. Prior to the PCA transfo
 Comparison of Condition Number
 \end{center}
 
-\begin{tabular}{rr}
-\toprule
-\midrule
-Original condition number & PCA transformed condition number & \
-\midrule
-75869592332155.22 & 164.65 & \
-\bottomrule
-\end{tabular}
+% \begin{tabular}{rr}
+% \toprule
+% \midrule
+% Original condition number & PCA transformed condition number & \
+% \midrule
+% 75869592332155.22 & 164.65 & \
+% \bottomrule
+% \end{tabular}
 
 \subsubsection{Singular Value Decomposition Analysis}
 
@@ -122,7 +128,6 @@ Despite a longer computation time, Random Forest Analysis is recommended for thi
 
 \subsection{Discretization \& Binarization}
 \subsubsection{Discretization of \texttt{minimumInstalls} Column}
-\textbf{Steps:}
 
 The Google Play Store categorizes app installations into 18 distinct groups, ranging from 0, 1, 5, 10, 50, 100, up to 5B and 10B. Utilizing this categorical feature as a target in analysis can lead to excessive complexity and a heightened risk of overfitting due to the multitude of classes. To mitigate this issue, regrouping the installation categories proves to be a viable solution. Figure X illustrates the distribution of values in the \texttt{installRange} after this modification. The data has been reorganized into five new, balanced groups.
 
@@ -132,7 +137,7 @@ By applying \texttt{pd.get\_dummies} to the \texttt{category}, \texttt{minAndroi
 
 \subsection{Variable Transformation}
 
-Standardization is a process that normalizes the scale of data, which can enhance the performance of various algorithms. However, it's not necessary. For instance, decision tree algorithms, including their variants, do not require standardization due to their insensitivity to data scale. In this analysis, a new standardized dataframe is created, ensuring that the original data remains unaltered. This approach allows for the flexibility to apply different algorithms, both those that benefit from standardization and those that do not.
+Standardization is not necessary for decision tree and several other algorithms due to their insensitivity to data scale. In this part of the project, a new standardized dataframe is created, ensuring that the original data remains unaltered. This approach allows for the flexibility to apply different algorithms, both those that benefit from standardization and those that do not.
 
 \subsection{Anomaly Detection}
 
@@ -142,7 +147,11 @@ Standardization is a process that normalizes the scale of data, which can enhanc
 \caption{Outlier Detection Console Message}
 \end{figure}
 
-In this analysis, the Mahalanobis distance, in conjunction with the chi-squared distribution, is utilized to identify outliers in the dataset. It's important to note that the squared Mahalanobis Distance adheres to a Chi-Square distribution. The degrees of freedom for the chi-squared test are set at 11, accounting for 10 variables and one target in the dataset. A significance level of 0.1 is chosen for outlier detection, which is a common practice in statistical analysis to balance between sensitivity and specificity in identifying outliers. Consequently, this approach led to the identification and proposed removal of approximately 235,840 observations, equating to roughly 10.8\% of the data, as outliers.
+In this part of the pre-processing, normalization tests and IQR outlier removal are utilized. The target observes no distribution at first, this issue is solved by applying \texttt{np.log10}. Unfortunately even after logarithmic transformation, the data did not pass \textbf{Shapiro test}. Figure X shows the Q-Q plot of Install vs. Normal Distribution. 
+
+After outlier removal using IQR method, the target still can not pass Shapiro test. In order to keep useful information, no further outlier removal is executed.
+
+% In this analysis, the Mahalanobis distance, in conjunction with the chi-squared distribution, is utilized to identify outliers in the dataset. It's important to note that the squared Mahalanobis Distance adheres to a Chi-Square distribution. The degrees of freedom for the chi-squared test are set at 11, accounting for 10 variables and one target in the dataset. A significance level of 0.1 is chosen for outlier detection, which is a common practice in statistical analysis to balance between sensitivity and specificity in identifying outliers. Consequently, this approach led to the identification and proposed removal of approximately 235,840 observations, equating to roughly 10.8\% of the data, as outliers.
 
 \subsection{Sample Covariance Matrix and Sample Pearson Correlation Coefficient Matrix}
 
@@ -168,8 +177,9 @@ Figure X and Figure Y represent the covariance matrix and the correlation matrix
 \caption{Distribution of Target values}
 \end{figure}
 
-The distribution of targets depicted in Figure X indicates a balanced composition, with no single group dominating the target dataset.
+The current distribution of targets depicted in Figure X indicates a imbalanced composition, with no single group dominating the target dataset.
 
+In order to make sure target is balanced, \texttt{pd.qcut} is utilized. Figure X shows the balanced target distribution after discretization and binarization.
 
 % Rest of the document continues with similar formatting and structuring...
 
