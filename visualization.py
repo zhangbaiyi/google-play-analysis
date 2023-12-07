@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from statsmodels.graphics.gofplots import qqplot
 from scipy.stats import shapiro
+import warnings
+warnings.filterwarnings("ignore")
 
 font_title = {'family': 'serif', 'color': 'blue', 'size': '16'}
 font_label = {'family': 'serif', 'color': 'darkred', 'size': '12'}
