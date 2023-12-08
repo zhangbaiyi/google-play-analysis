@@ -367,7 +367,7 @@ def preprocessing():
     print("PCA transformed shape: {}".format(str(pca_X_transform.shape)))
     print("Original condition number: {:.2f}".format(np.linalg.cond(pca_X)))
     print("PCA transformed condition number: {:.2f}".format(np.linalg.cond(pca_X_transform)))
-    plt.figure(figsize=(10, 10))
+    plt.figure()
     plt.plot(np.arange(1, len(pca.explained_variance_ratio_) + 1, 1), np.cumsum(pca.explained_variance_ratio_))
     plt.xticks(np.arange(1, len(pca.explained_variance_ratio_) + 1, 5))
     plt.axvline(x=10, color='r', linestyle='--')

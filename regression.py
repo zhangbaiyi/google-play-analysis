@@ -4,7 +4,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split, KFold, cross_val_score
-from sklearn.metrics import mean_squared_error, make_scorer
+from sklearn.metrics import mean_squared_error, make_scorer, PredictionErrorDisplay
 import statsmodels.api as sm
 from prettytable import PrettyTable
 
@@ -34,6 +34,13 @@ def backward_stepwise_regression(_X_train, _y_train):
     print(table)
 
     print(model.summary())
+    print(model.summary().as_latex())
+
+    # alternatively
+    for _table in model.summary().tables:
+        print(_table.as_latex_tabular())
+
+
     removed_p_value = model.pvalues.max()
     _X_train.drop(['category_Productivity'], axis=1, inplace=True)
     model = sm.OLS(_y_train, _X_train).fit()
@@ -60,6 +67,8 @@ def backward_stepwise_regression(_X_train, _y_train):
          model.mse_model])
     print(table)
 
+
+
     return table, model.summary()
 
 
@@ -71,12 +80,15 @@ def train_random_forest(X, y):
     features = _X_train.columns
     importances = _rf.feature_importances_
     indices = np.argsort(importances)[-13:]
-    plt.figure(figsize=(12, 8))
+    plt.figure()
     plt.title("Feature Importances")
     plt.barh(range(len(indices)), importances[indices])
     plt.yticks(range(len(indices)), [features[i] for i in indices])
     plt.xlabel("Relative Importance")
+    plt.ylabel("Feature")
     plt.tight_layout()
+    plt.grid()
+    plt.savefig('plots/regressor_feature_importances.png', dpi=300)
     plt.show()
 
     feature_importance_df = pd.DataFrame({'feature': features, 'importance': importances})
@@ -89,44 +101,64 @@ def train_random_forest(X, y):
     kfold = KFold(n_splits=10, shuffle=True, random_state=42)
     scores = cross_val_score(_rf, _X_train, _y_train, cv=kfold, scoring=make_scorer(mean_squared_error), n_jobs=-1)
 
-    table.title = "Random Forest Regression - Final Results"
-    table.field_names = ['Training R^2', 'Testing R^2', 'Training MSE', 'Testing MSE']
-    table.float_format = '.3'
-    table.add_row([_rf.score(_X_train, _y_train), _rf.score(_X_test, _y_test),
-                   np.mean((_rf.predict(_X_train) - _y_train) ** 2),
-                   np.mean((_rf.predict(_X_test) - _y_test) ** 2)])
+    n_features = _X_test.shape[1]
+    n_samples = _X_test.shape[0]
+
+    testing_r2 = _rf.score(_X_test, _y_test)
+    testing_mse = mean_squared_error(_y_test, _rf.predict(_X_test))
+
+    adjusted_r2 = 1 - (1 - testing_r2) * (n_samples - 1) / (n_samples - n_features - 1)
+
+    resid = _y_test - _rf.predict(_X_test)
+    sse = np.sum(resid ** 2)
+    aic = 2 * n_features + n_samples * np.log(sse / n_samples)
+    bic = n_features * np.log(n_samples) + n_samples * np.log(sse / n_samples)
+
+    plt.figure()
+    display = PredictionErrorDisplay.from_predictions(
+        y_true=_y_test,
+        y_pred=_rf.predict(_X_test),
+        kind="actual_vs_predicted",
+        ax=plt.gca(),
+        scatter_kwargs={"alpha": 0.2, "color": "tab:blue"},
+        line_kwargs={"color": "tab:red"},
+    )
+    plt.title(f"Random Forest Regression")
+    R_squared = _rf.score(_X_test, _y_test)
+    plt.plot([], [], " ", label=f"R_Squared: {R_squared:.2f}")
+    plt.legend(loc="upper left")
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig('plots/regressor_prediction_error.png', dpi=300)
+
+    table.title = "Random Forest Regression - Testing Results"
+    table.field_names = ['R_Squared', 'Adj R^2', 'AIC', 'BIC', 'MSE']
+    table.add_row([testing_r2, adjusted_r2, aic, bic, testing_mse])
+
     print(table)
     return _rf, table, scores, _rf.predict(_X_test)
 
 
 def plot_results(_results_df, _scores):
-    plt.figure(figsize=(30, 10))
-    plt.title("Predicted vs Actual")
     _results_df['Actual'] = _results_df['Actual'].apply(reverse_standardize)
     _results_df['Predicted'] = _results_df['Predicted'].apply(reverse_standardize)
     _results_df['Predicted Upper'] = _results_df['Predicted'] + 1.96 * np.sqrt(_scores.mean())
     _results_df['Predicted Lower'] = _results_df['Predicted'] - 1.96 * np.sqrt(_scores.mean())
     _results_df['Actual'].plot(kind='line', label='Actual')
     _results_df['Predicted'].plot(kind='line', label='Predicted')
-    plt.xlabel("# of Samples")
-    plt.ylabel("Installs")
-    plt.grid()
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-    plt.figure(figsize=(12, 8))
+    plt.figure()
     results_df_head = _results_df.head(100)
     results_df_head['Actual'].plot(kind='line', label='Actual')
     results_df_head['Predicted'].plot(kind='line', label='Predicted')
     plt.fill_between(range(len(results_df_head['Predicted'])), results_df_head['Predicted Lower'],
                      results_df_head['Predicted Upper'], color='orange', alpha=0.4)
     plt.xlabel("# of Samples")
-    plt.ylabel("Installs")
-    plt.grid()
-    plt.tight_layout()
-    plt.legend()
+    plt.ylabel("Values")
     plt.title("Predicted vs Actual with Confidence Interval - First 100 Samples")
+    plt.tight_layout()
+    plt.grid()
+    plt.legend()
+    plt.savefig('plots/regressor_predicted_vs_actual.png', dpi=300)
     plt.show()
 
 

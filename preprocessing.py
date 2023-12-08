@@ -221,67 +221,68 @@ rename_dict = {
 df.rename(columns=rename_dict, inplace=True)
 print("Shape of Dataframe after modification: {}".format(str(df.shape)))
 
-print("=========================================")
-print("Random Forest Analysis")
-print("Output: Feature Importance Plot")
-print("=========================================")
-rfa_X = df.copy()
-rfa_y = df['installCount'].copy()
-rfa_X.drop(columns=['installCount','installRange'], inplace=True)
-rfa_X.drop(columns=['appName'], inplace=True)
-rfa_X = pd.get_dummies(rfa_X, columns=['category', 'contentRating'])
-rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test = train_test_split(rfa_X, rfa_y, test_size=0.2, random_state=5805)
+# print("=========================================")
+# print("Random Forest Analysis")
+# print("Output: Feature Importance Plot")
+# print("=========================================")
+# rfa_X = df.copy()
+# rfa_y = df['installCount'].copy()
+# rfa_X.drop(columns=['installCount','installRange'], inplace=True)
+# rfa_X.drop(columns=['appName'], inplace=True)
+# rfa_X = pd.get_dummies(rfa_X, columns=['category', 'contentRating'])
+# rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test = train_test_split(rfa_X, rfa_y, test_size=0.2, random_state=5805)
 
-rfa = RandomForestRegressor(random_state=5805, max_depth=10)
-rfa.fit(rfa_X_train, rfa_y_train)
-rfa_y_pred = rfa.predict(rfa_X_test)
-features = rfa_X.columns
-importances = rfa.feature_importances_
-indices = np.argsort(importances)[-14:]
-plt.figure(figsize=(10, 10))
-plt.title("Feature Importance - Random Forest")
-plt.barh(range(len(indices)), importances[indices], color='b', align='center')
-plt.yticks(range(len(indices)), [features[i] for i in indices])
-plt.xlabel('Relative Importance')
-plt.tight_layout()
-plt.show()
-del rfa_X, rfa_y, rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test, rfa, rfa_y_pred, importances, indices, features
-gc.collect()
-
-print("=========================================")
-print("Principal Component Analysis")
-print("Output: Explained Variance Ratio Plot")
-print("=========================================")
-pca_X = df.copy()
-pca_y = df['installCount'].copy()
-pca_X.drop(columns=['installCount','installRange'], inplace=True)
-pca_X.drop(columns=['appName'], inplace=True)
-pca_columns_to_standardize = ['rating', 'ratingCount', 'priceInUSD', 'sizeInMB', 'appAgeInDays', 'lastUpdateAgeInDays']
-pca_X[pca_columns_to_standardize] = StandardScaler().fit_transform(pca_X[pca_columns_to_standardize])
-
-pca_X = pd.get_dummies(pca_X, columns=['category', 'contentRating', 'minAndroidVersion'])
-for col in pca_X.columns:
-    if pca_X[col].dtype == 'bool':
-        pca_X[col] = pca_X[col].astype(int)
-pca = PCA(n_components='mle', svd_solver='full')
-pca.fit(pca_X)
-pca_X_transform = pca.transform(pca_X)
-print("Original shape: {}".format(str(pca_X.shape)))
-print("PCA transformed shape: {}".format(str(pca_X_transform.shape)))
-print("Original condition number: {:.2f}".format(np.linalg.cond(pca_X)))
-print("PCA transformed condition number: {:.2f}".format(np.linalg.cond(pca_X_transform)))
-plt.figure(figsize=(10, 10))
-plt.plot(np.arange(1, len(pca.explained_variance_ratio_) + 1, 1), np.cumsum(pca.explained_variance_ratio_))
-plt.xticks(np.arange(1, len(pca.explained_variance_ratio_) + 1, 5))
-plt.axvline(x=10, color='r', linestyle='--')
-plt.axhline(y=0.85, color='b', linestyle='--')
-plt.xlabel('Number of Components')
-plt.ylabel('Cumulative Explained Variance Ratio')
-plt.title('PCA - Cumulative Explained Variance Ratio')
-plt.grid()
-plt.show()
-del pca_X, pca_y, pca, pca_X_transform, pca_columns_to_standardize
-gc.collect()
+# rfa = RandomForestRegressor(random_state=5805, max_depth=10)
+# rfa.fit(rfa_X_train, rfa_y_train)
+# rfa_y_pred = rfa.predict(rfa_X_test)
+# features = rfa_X.columns
+# importances = rfa.feature_importances_
+# indices = np.argsort(importances)[-14:]
+# plt.figure(figsize=(10, 10))
+# plt.title("Feature Importance - Random Forest")
+# plt.barh(range(len(indices)), importances[indices], color='b', align='center')
+# plt.yticks(range(len(indices)), [features[i] for i in indices])
+# plt.xlabel('Relative Importance')
+# plt.tight_layout()
+# plt.show()
+# del rfa_X, rfa_y, rfa_X_train, rfa_X_test, rfa_y_train, rfa_y_test, rfa, rfa_y_pred, importances, indices, features
+# gc.collect()
+#
+# print("=========================================")
+# print("Principal Component Analysis")
+# print("Output: Explained Variance Ratio Plot")
+# print("=========================================")
+# pca_X = df.copy()
+# pca_y = df['installCount'].copy()
+# pca_X.drop(columns=['installCount','installRange'], inplace=True)
+# pca_X.drop(columns=['appName'], inplace=True)
+# pca_columns_to_standardize = ['rating', 'ratingCount', 'priceInUSD', 'sizeInMB', 'appAgeInDays', 'lastUpdateAgeInDays']
+# pca_X[pca_columns_to_standardize] = StandardScaler().fit_transform(pca_X[pca_columns_to_standardize])
+#
+# pca_X = pd.get_dummies(pca_X, columns=['category', 'contentRating', 'minAndroidVersion'])
+# for col in pca_X.columns:
+#     if pca_X[col].dtype == 'bool':
+#         pca_X[col] = pca_X[col].astype(int)
+# pca = PCA(n_components='mle', svd_solver='full')
+# pca.fit(pca_X)
+# pca_X_transform = pca.transform(pca_X)
+# print("Original shape: {}".format(str(pca_X.shape)))
+# print("PCA transformed shape: {}".format(str(pca_X_transform.shape)))
+# print("Original condition number: {:.2f}".format(np.linalg.cond(pca_X)))
+# print("PCA transformed condition number: {:.2f}".format(np.linalg.cond(pca_X_transform)))
+# plt.figure(figsize=(10, 10))
+# plt.plot(np.arange(1, len(pca.explained_variance_ratio_) + 1, 1), np.cumsum(pca.explained_variance_ratio_))
+# plt.xticks(np.arange(1, len(pca.explained_variance_ratio_) + 1, 5))
+# plt.axvline(x=10, color='r', linestyle='--')
+# plt.axhline(y=0.85, color='b', linestyle='--')
+# plt.xlabel('Number of Components')
+# plt.ylabel('Cumulative Explained Variance Ratio')
+# plt.title('PCA - Cumulative Explained Variance Ratio')
+# plt.grid()
+# plt.savefig('plots/pca.png', dpi=300)
+# plt.show()
+# del pca_X, pca_y, pca, pca_X_transform, pca_columns_to_standardize
+# gc.collect()
 
 print("=========================================")
 print("Single Value Decomposition")
@@ -301,6 +302,21 @@ for col in svd_X.columns:
     if svd_X[col].dtype == 'bool':
         svd_X[col] = svd_X[col].astype(int)
 
+n_features = svd_X.shape[1]
+svd = TruncatedSVD(n_components=n_features, n_iter=7, random_state=5805)
+svd.fit(svd_X)
+explained_variance_ratio = svd.explained_variance_ratio_
+plt.plot(np.arange(1, len(explained_variance_ratio) + 1, 1), np.cumsum(explained_variance_ratio))
+plt.xticks(np.arange(1, len(explained_variance_ratio) + 1, 5))
+plt.yticks(np.arange(0, 1.1, 0.1))
+plt.axvline(x=10, color='r', linestyle='--')
+plt.axhline(y=0.85, color='b', linestyle='--')
+plt.grid()
+plt.xlabel('Number of Components')
+plt.ylabel('Cumulative Explained Variance Ratio')
+plt.title('Truncated SVD - Cumulative Explained Variance Ratio')
+plt.savefig('plots/svd.png', dpi=300)
+plt.show()
 svd = TruncatedSVD(n_components=10, n_iter=7, random_state=5805)
 svd.fit(svd_X)
 svd_X_transform = svd.transform(svd_X)
@@ -329,6 +345,12 @@ for col in vif_X.columns:
 VIFs = pd.Series([variance_inflation_factor(vif_X, i) for i in range(vif_X.shape[1])], index=vif_X.columns)
 print("VIFs: ")
 print(VIFs)
+vif_result = PrettyTable()
+vif_result.field_names = ["Feature", "VIF"]
+for col in vif_X.columns:
+    vif_result.add_row([col, VIFs[col]])
+print(vif_result)
+
 del vif_X
 gc.collect()
 
@@ -363,10 +385,17 @@ import seaborn as sns
 from statsmodels.graphics.gofplots import qqplot
 
 sns.kdeplot(data=df, x = np.log10(df['installCount'].values), fill=True)
+plt.title('Installs Distribution (Log)')
+plt.xlabel('Log10(Installs)')
+plt.ylabel('Density')
+plt.grid()
+plt.savefig('plots/installs.png', dpi=300)
 plt.show()
 fig = qqplot(np.log10(df['installCount']), stats.norm, fit=True, line='45')
 ax = fig.axes[0]
 ax.set_title("QQ Plot - Installs (Log) vs. Normal Distribution")
+plt.grid()
+plt.savefig('plots/qqplot.png', dpi=300)
 plt.show()
 from scipy.stats import shapiro
 def shapiro_test(x, title, alpha = 0.05):
@@ -420,8 +449,8 @@ print("=========================================")
 value_counts = pd.DataFrame(df['installRange'].value_counts())
 total_count = value_counts['count'].sum()
 value_counts['percentage'] = value_counts['count'] / total_count * 100
-plt.figure(figsize=(10, 5))
-plt.barh(value_counts.index, value_counts['percentage'], color='blue')
+plt.figure()
+plt.barh(value_counts.index, value_counts['percentage'])
 plt.xlabel('Percentage (%)')
 plt.ylabel('Range')
 plt.title('Target Distribution - Install Range')
@@ -442,7 +471,7 @@ value_counts = pd.DataFrame(df['installQcut'].value_counts())
 total_count = value_counts['count'].sum()
 value_counts['percentage'] = value_counts['count'] / total_count * 100
 plt.figure(figsize=(10, 5))
-plt.barh(value_counts.index, value_counts['percentage'], color='blue')
+plt.barh(value_counts.index, value_counts['percentage'])
 plt.xlabel('Percentage (%)')
 plt.ylabel('Range')
 plt.title('Target Distribution - Install Range')
@@ -451,6 +480,7 @@ xticks = range(0, 51, 10)
 plt.xticks(xticks, [f"{x}%" for x in xticks])
 for index, value in enumerate(value_counts['percentage']):
     plt.text(value, index, f"{value:.2f}%", va='center')
+plt.savefig('plots/target_low_high.png', dpi=300)
 plt.show()
 del value_counts, total_count
 gc.collect()
