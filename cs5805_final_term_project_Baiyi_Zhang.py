@@ -772,7 +772,7 @@ def plot_roc_curve_plt(fpr, tpr, auc, title):
 
 
 def elbow_method_knn(my_X, my_y):
-    plt.figure(figsize=(10, 10))
+    plt.figure()
     X_train, X_test, y_train, y_test = train_test_split(my_X, my_y, test_size=0.2, random_state=42,
                                                         stratify=my_y)
     error_rate = []
@@ -784,8 +784,11 @@ def elbow_method_knn(my_X, my_y):
     plt.plot(range(1, 30, 1), error_rate, marker='o', markersize=9)
     plt.ylabel('Error Rate')
     plt.xlabel('k')
-    plt.xticks(np.arange(1, 30, 1))
+    plt.xticks(np.arange(1, 30, 2))
     plt.title('Error Rate vs. K Value - (Elbow Method)')
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig('plots/elbow_method_knn.png', dpi= 300)
     plt.show()
 
 
@@ -800,7 +803,7 @@ def optimize_cost_complexity_pruning_alpha(my_X, my_y, random_state=42):
         clfs.append(clf)
     train_scores = [clf.score(X_train, y_train) for clf in clfs]
     test_scores = [clf.score(X_test, y_test) for clf in clfs]
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots()
     ax.set_xlabel("alpha")
     ax.set_ylabel("accuracy")
     ax.set_title("Accuracy vs Alpha for Training and Testing sets")
@@ -809,6 +812,9 @@ def optimize_cost_complexity_pruning_alpha(my_X, my_y, random_state=42):
     ax.plot(ccp_alphas, test_scores, marker='o', label="test",
             drawstyle="steps-post")
     ax.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig('plots/accuracy_vs_alpha.png', dpi= 300)
     plt.show()
 
 
@@ -1164,7 +1170,7 @@ def classification(outer_df, outer_df_standard):
                                logistic_regression_metrics, knn_metrics, svc_metrics, naive_bayes_metrics,
                                random_forest_metrics, stacking_metrics, boosting_metrics, neural_network_metrics]
 
-    fig, ax = plt.subplots(2, 5, figsize=(25, 15))
+    fig, ax = plt.subplots(2, 5, figsize=(30, 15))
     plot_roc_curve(ax[0, 0], decision_tree_pre_pruning_fpr, decision_tree_pre_pruning_tpr,
                    decision_tree_pre_pruning_metrics.roc_auc, 'Decision Tree Pre-pruning')
     plot_roc_curve(ax[0, 1],
@@ -1212,8 +1218,10 @@ def classification(outer_df, outer_df_standard):
                    neural_network_tpr,
                    neural_network_metrics.roc_auc,
                    'Neural Network')
-    plt.savefig('plots/master_roc_curve.png')
+    plt.savefig('plots/master_roc_curve_new.png', dpi= 300)
     plt.show()
+
+
 
     return master_table, master_table_latex, classifier_metrics_list
 
@@ -1241,7 +1249,7 @@ def plot_pca_clusters(X, clusters, model, title, cluster_ids_to_plot=None):
     pca = PCA(n_components=2)
     df_pca = pca.fit_transform(X)
 
-    plt.figure(figsize=(10, 7))
+    plt.figure()
 
     unique_clusters = set(clusters)
     if cluster_ids_to_plot is not None:
@@ -1262,12 +1270,12 @@ def plot_pca_clusters(X, clusters, model, title, cluster_ids_to_plot=None):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.savefig('plots/{}.png'.format(title))
+    plt.savefig('plots/{}.png'.format(title), dpi= 300)
     plt.show()
 
 
 def plot_elbow_method(sse, kmax):
-    plt.figure(figsize=(10, 10))
+    plt.figure()
     plt.plot(np.arange(2, kmax + 1, 1), sse)
     plt.xticks(np.arange(2, kmax + 1, 1))
     plt.grid()
@@ -1275,20 +1283,20 @@ def plot_elbow_method(sse, kmax):
     plt.ylabel('WSS')
     plt.title('K selection in K-means++ - Elbow Method')
     plt.tight_layout()
-    plt.savefig('plots/kmeans_elbow_method.png')
+    plt.savefig('plots/kmeans_elbow_method.png', dpi= 300)
     plt.show()
 
 
 def plot_silhouette_method(sil, kmax):
-    plt.figure(figsize=(10, 10))
-    plt.plot(np.arange(2, kmax + 1, 1), sil, 'bx-')
+    plt.figure()
+    plt.plot(np.arange(2, kmax + 1, 1), sil, 'x-')
     plt.xticks(np.arange(2, kmax + 1, 1))
     plt.grid()
     plt.xlabel('k')
     plt.ylabel('Silhouette Score')
     plt.title('K selection in K-means++ - Silhouette Method')
     plt.tight_layout()
-    plt.savefig('plots/kmeans_silhouette_method.png')
+    plt.savefig('plots/kmeans_silhouette_method.png', dpi= 300)
     plt.show()
 
 
