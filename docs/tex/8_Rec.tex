@@ -1,0 +1,39 @@
+\section{Recommendations}
+
+\subsection{Takeaway from the Project}
+
+The project provides a breadth-first search method to the common machine learning algorithms. From regression to classification, a variety of algorithms are implemented and analyzed. The basic approaches in industry application of machine learning are my biggest takeaway.
+
+Apart form this, I learned the importance of feature engineering and pre-processing. The results of the machine learning model depend largely on the dataset. When analyzing the output and performance of the model, it should be taken into consideration the collinearity, correlation or normality of the dataset.
+
+The classification part takes up a large amount of coding time and running time. I realized that it is very important to make pipelines for model training, to automatize the process as much as possible. In my practice, I managed to code a pipeline that can apply to every classifiers per the project requires. It seems to be a better approach to write pipeline based on small batch size training data before directly operating on large dataset.
+
+\subsection{Best Classifier}
+
+The best classifier recommended for this dataset is \textbf{Neural Network Classifier}. It balances all metrics and has the highest AUC and F1 score without compromising precision or recall. 
+
+The pre-pruning and post-pruning Decision Tree classifiers demonstrated consistent performance in precision, recall, specificity, F1 score, and AUC, highlighting their capability in effectively managing both positive and negative class predictions. Conversely, the Logistic Regression model was particularly strong in specificity, underlining its ability to minimize false positives.
+
+From the comparison of tree-based classifiers and others, the performance of tree-based classifier is generally better.
+
+TK-Nearest Neighbors classifier showcased notable precision and AUC, rivaling more sophisticated models. The Support Vector Machine stood out for its high precision and specificity, making it adept at avoiding false positives, though it was less successful in terms of recall.
+
+Naïve Bayes achieved the highest precision but fell short in recall and F1 score, likely due to the data’s non-normal distribution. On the other hand, the Random Forest Bagging approach excelled across all metrics, proving to be a highly effective method.
+
+The Stacking method, which integrates multiple estimators, led the field with the highest AUC, reflecting its superior predictive capability. Similarly, the Boosting approach scored well in all areas, particularly shining in precision and F1 score. Lastly, the Neural Network, with one of the top AUCs, demonstrated high precision and F1 score, confirming its effectiveness as a classifier.
+
+The art of training a model is the art of managing trade-offs. From my results, it can be hard to say which one is the best without considering the dataset and actual usage context. Hence it is better to treat the models equally before they yield distinct outcomes.
+
+\subsection{Performance Improvement}
+
+In order to improve performance, pipelines and bootstrapping should be taken into consideration. If \texttt{gridSearchCV} has to be used, the parameter grid should be based on theory and as divided as possible (or binary search).
+
+The hardware is also very important. For all my classification, \texttt{n\_jobs} is set to -1, which means the program occupies all available CPUs for running. However, if the dataset gets 10x larger, it would be impossible to finish all the estimation and searching.
+
+\subsection{Features Associated with the Target}
+
+From correlation matrix and random forest analysis, \texttt{ratingCount} has an intermediate relation with \texttt{installCount}, which is natural because if the number of ratings are large, the installs of the app should be large since more people use the app. Also, app age and update age are the variables most people overlook in this kind of dataset, it turns out they are also important in association rules and classification.
+
+\subsection{Number of Clusters}
+
+The number of clusters should be 7. The result is visualized in figure~\ref{fig:pca-kmeans} using PCA.
