@@ -81,6 +81,8 @@ def optimize_cost_complexity_pruning_alpha(my_X, my_y, random_state=42):
     ax.plot(ccp_alphas, test_scores, marker='o', label="test",
             drawstyle="steps-post")
     ax.legend()
+    plt.tight_layout()
+    plt.savefig('plots/decision_tree_optimize_cost_complexity_pruning_alpha.png', dpi=300)
     plt.show()
 
 
@@ -161,6 +163,20 @@ def classifier_fpr_tpr(classifier, y_test, X_test):
     fpr, tpr, _ = roc_curve(y_test, classifier.predict_proba(X_test)[:, 1])
     return fpr, tpr
 
+
+def make_individual_table(classifer_title, classifier_metrics):
+    table = PrettyTable()
+    table.title = classifer_title
+    table.float_format = ".3"
+    table.field_names = ["Classifier", "Confusion Matrix", "Precision", "Recall", "Specificity", "F1", "AUC"]
+    table.add_row([classifer_title,
+                   classifier_metrics.confusion_matrix,
+                   classifier_metrics.precision,
+                   classifier_metrics.recall,
+                   classifier_metrics.specificity,
+                   classifier_metrics.f1_score,
+                   classifier_metrics.roc_auc])
+    return table
 
 print("====================================")
 print("Decision Tree")
